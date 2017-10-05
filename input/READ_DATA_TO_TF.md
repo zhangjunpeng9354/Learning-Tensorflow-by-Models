@@ -16,7 +16,9 @@ be designed for large machine learning problems with distributed files.
 
 ## Using the Datasets API
 
-
+Input pipeline is a mechanism to build a sequence of elements, for example,
+in image recognition problems, each element is a bundle of a training sample
+and its corresponding label.
 
 
 
