@@ -103,6 +103,7 @@ def inference(raw):
                        data_format=data_format, name='conv1')
 
     norm1 = tf.nn.lrn(conv1, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm1')
+
     if data_format == 'NCHW':
         pool1 = tf.nn.max_pool(norm1, [1, 1, 3, 3], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool1')
     else:
@@ -112,6 +113,7 @@ def inference(raw):
                        data_format=data_format, name='conv2')
 
     norm2 = tf.nn.lrn(conv2, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm2')
+
     if data_format == 'NCHW':
         pool2 = tf.nn.max_pool(norm2, [1, 1, 3, 3], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool2')
     else:
@@ -127,6 +129,7 @@ def inference(raw):
                        data_format=data_format, name='conv5')
 
     norm3 = tf.nn.lrn(conv5, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm3')
+
     if data_format == 'NCHW':
         pool3 = tf.nn.max_pool(norm3, [1, 1, 3, 3], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool3')
     else:
@@ -183,6 +186,15 @@ def train(total_loss, global_step):
         if var is not None:
             tf.summary.histogram(var.op.name, var)
 
+    return appply_gradient_op
 
 
-    return None
+def evaluate(logits, labels, name='Train'):
+    with tf.variable_scope(name) as scope:
+        y_pred_cls = tf.argmax(logits, axis=1)
+        correct_prediction = tf.equal(y_pred_cls, tf.argmax(labels, axis=1))
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+        tf.summary.scalar('Accuracy/{}'.format(scope.name), accuracy)
+
+    return accuracy
