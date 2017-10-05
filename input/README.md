@@ -18,7 +18,12 @@ be designed for large machine learning problems with distributed files.
 
 Input pipeline is a mechanism to build a sequence of elements, for example,
 in image recognition problems, each element is a bundle of a training sample
-and its corresponding label.
+and its corresponding label. An input pipeline includes a
+```tf.contrib.data.Dataset``` for representing the elements, and two mechanisms
+for operating the dataset. These two mechanisms are utilized for transformation
+and iteration over the dataset respectively.
+
+
 
 
 

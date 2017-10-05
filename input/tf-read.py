@@ -52,5 +52,15 @@ def input_pipeline(data_dir):
 
 
 if __name__ == '__main__':
-    feeding()
-    input_pipeline('/Users/Zhang/Research/Deep Learning Dataset/CIFAR/cifar-10-batches-py')
+    dataset1 = tf.contrib.data.Dataset.from_tensors(tf.random_uniform([4, 10]))
+    print(dataset1.output_types)
+    print(dataset1.output_shapes)
+
+    dataset2 = tf.contrib.data.Dataset.from_tensor_slices(tf.random_uniform([4, 10]))
+    print(dataset2.output_types)
+    print(dataset2.output_shapes)
+
+
+
+    # feeding()
+    # input_pipeline('/Users/Zhang/Research/Deep Learning Dataset/CIFAR/cifar-10-batches-py')
