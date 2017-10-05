@@ -30,11 +30,17 @@ folder. See Running for more details on how to run this experiments.
 
 ### Prerequisites
 
-What things you need to install the software and how to install them
+This project is developed by ```Python 2.7.12``` on the Ubuntu 16.04 in
+AWS Deep Learning Virtual Machine (p2.xlarge),
+no other software is required if you are using a similar machine.
+(Currently, use this code in Windows platform is not recommended,
+since I do not have a machine to test these code.)
 
-```
-Give examples
-```
+In order to deploy in your local machine, ```Numpy``` and ```TensorFlow```
+is required for this projects. To install this packages in your development
+environment, please this document for more details [Installing TensorFlow
+Step-by-Step](https://www.tensorflow.org/install/).
+
 
 ### Installing
 
