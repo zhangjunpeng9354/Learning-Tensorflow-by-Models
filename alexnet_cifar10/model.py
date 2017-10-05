@@ -8,6 +8,7 @@ Summary of available functions:
 
 '''
 
+NUM_CLASS = 10
 NUM_IMAGE_CHANNEL = 3
 NUM_IMAGE_WIDTH = 32
 NUM_IMAGE_HEIGHT = 32
@@ -48,7 +49,8 @@ def conv_layer(input, kernel_shape, stride, data_format='NCHW', name='conv'):
 
     return conv
 
-def fc_layer(input, size, name='fc'):
+
+def fc_layer(input, size, name='fc', final=False):
     '''Full Connected Layer in TensorFlow.
 
     :param input: A 2-D tensor of shape
@@ -56,6 +58,7 @@ def fc_layer(input, size, name='fc'):
     :param size: A list of `ints`.
         A 2-D tensor of shape
         `[NUM_INPUT, NUM_OUTPUT]`.
+    :param final: An optinal `bool`. Default is `False`, while `True` is for the final layer.
     :param name: An optional `string` for the name of this operation.
     :return:
         A TensorFlow operation of Full Connected Layer.
@@ -68,9 +71,13 @@ def fc_layer(input, size, name='fc'):
         tf.add_to_collection('losses', weight_decay)
 
         biases = tf.get_variable('b', size[1], initializer=tf.constant_initializer(0.1))
-        fc = tf.nn.relu(tf.matmul(input, weights) + biases, name=scope.name)
-        tf.summary.histogram('Fully_connected_layers/{}_{}'.format(name, 'activation'), fc)
-        tf.summary.scalar('Fully_connected_layers/{}_{}'.format(name, 'sparsity'), tf.nn.zero_fraction(fc))
+
+        if final is True:
+            fc = tf.add(tf.matmul(input, weights), biases, name=scope.name)
+        else:
+            fc = tf.nn.relu(tf.matmul(input, weights) + biases, name=scope.name)
+            tf.summary.histogram('Fully_connected_layers/{}_{}'.format(name, 'activation'), fc)
+            tf.summary.scalar('Fully_connected_layers/{}_{}'.format(name, 'sparsity'), tf.nn.zero_fraction(fc))
 
     return fc
 
@@ -125,8 +132,31 @@ def inference(raw):
     else:
         pool3 = tf.nn.max_pool(norm3, [1, 3, 3, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool3')
 
+    pool3_flat = tf.reshape(pool3, [-1, 4 * 4 * 128], name='flatten')
+
+    fc1 = fc_layer(pool3_flat, [4 * 4 * 128, 384], name='fc1', final=False)
+
+    fc2 = fc_layer(fc1, [384, 192], name='fc2', final=False)
+
+    softmax_linear = fc_layer(fc2, [192, NUM_CLASS], name='fc3', final=True)
+
+    return softmax_linear
 
 
+def loss(logits, labels):
+
+    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        labels=labels, logits=logits, name='cross_entropy_per_example')
+    cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
+    tf.add_to_collection('losses', cross_entropy_mean)
+
+    # The total loss is defined as the cross entropy loss plus all of the weight
+    # decay terms (L2 loss).
+    total_loss = tf.add_n(tf.get_collection('losses'), name='total_loss')
+
+    return total_loss
+
+def train(total_loss, global_step):
 
 
     return None
