@@ -1,4 +1,6 @@
+import os
 
+import tensorflow as tf
 import numpy as np
 
 '''Routines for reading the CIFAR-10 python batch files.'''
@@ -6,11 +8,11 @@ import numpy as np
 # Global constants describing the CIFAR-10 data set.
 NUM_CLASSES = 10
 NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 50000
-TRAINSET_NAME_LIST = ['data_batch_1', 'data_batch_2', 'data_batch_3', 'data_batch_4', 'data_batch_5']
-TESTSET_NAME = 'test_batch'
+
+DEFALFT_DATASET_DIR = '/datasets/cifar-10-batches-py'
 
 
-def load_cifar10(path):
+def load_cifar10(path=DEFALFT_DATASET_DIR):
     '''Read training and testing samples from CIFAR-10 python batch files.
 
     Recommendation: AlexNet in the tutorials provided by TensorFlow describes
@@ -24,24 +26,25 @@ def load_cifar10(path):
     then path should be '/tmp/CIFAR-10/cifar-10-batches-py'.
     Please note that the dataset should be downloaded in advance.
     :return:
-    train_images: in raw format, [None, 3024],
-    train_labels: in one-hot format,
-    test_images: the same as train_images,
+    train_images: in raw format, [None, 3024], dtype = np.float32.
+    train_labels: in one-hot format, dtype = np.int32.
+    test_images: the same as train_images.
     test_labels: the same as train_labels.
     '''
-    _train_batch_files = []
-    for name in TRAINSET_NAME_LIST:
-        _train_batch_files.append('{}/{}'.format(path, name))
-    test_batch = '{}/{}'.format(path, TESTSET_NAME)
+
+    _training_file_names = [os.path.join(path, 'data_batch_%d' % i) for i in xrange(1, 6)]
+    _test_file_names = os.path.join(path, 'test_batch')
+
+
 
     import cPickle
 
     _train_batches = []
-    for batch_file in _train_batch_files:
-        with open(batch_file, 'rb') as f:
-            _train_batches.append(cPickle.load(f))
+    for _file_name in _training_file_names:
+        with open(_file_name, 'rb') as _training_file:
+            _train_batches.append(cPickle.load(_training_file))
 
-    with open(test_batch, 'rb') as f:
+    with open(_test_file_names, 'rb') as f:
         test_batch = cPickle.load(f)
 
     train_images = np.vstack(batch['data'] for batch in _train_batches)
