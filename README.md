@@ -10,13 +10,20 @@ TensorFlow:
 
 
 For most of experiments in this project, knowledge comes from the API documents
-from TensorFlow ( [TensorFlow API Document](https://www.tensorflow.org/get_started/) )
+from TensorFlow ([TensorFlow API Document](https://www.tensorflow.org/get_started/) )
 and from some projects from other intellects.
 
-Please feel free to contact me or to use these code for your application.
+Please feel free to contact me or to modify these codes for your application.
 Any feedback is welcomed.
 
 ## Getting Started
+
+To use this tutorial for your exploration in TensorFlow, please clone or download
+this git to your machine.
+
+```git
+git clone https://github.com/zhangjunpeng9354/Learning-Tensorflow-by-Models.git
+```
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
 
