@@ -90,6 +90,25 @@ if __name__ == '__main__':
         print(value)
 
 
+    dataset6 = tf.contrib.data.Dataset.from_tensor_slices(
+        tf.random_uniform([200, 2], name='features')
+    )
+    print(dataset6.output_types)
+    print(dataset6.output_shapes)
+
+    batch1 = dataset6.batch(4)
+    print(batch1.output_types)
+    print(batch1.output_shapes)
+
+    iterator = batch1.make_initializable_iterator()
+    next_element = iterator.get_next()
+
+    sess.run(iterator.initializer)
+    for i in range(5):
+        value = sess.run(next_element)
+        print(value)
+
+
 
     # feeding()
     # input_pipeline('/Users/Zhang/Research/Deep Learning Dataset/CIFAR/cifar-10-batches-py')
