@@ -9,7 +9,14 @@ Generally, there are four approaches to import data to TensorFlow Program:
 1. using the Datasets API,
 2. feeding,
 3. reading from files,
-4.
+4. preloaded data.
+
+Some of these approach are more suitable for small datasets, while others may
+be designed for large machine learning problems with distributed files.
+
+## Using the Datasets API
+
+
 
 
 
