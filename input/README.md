@@ -2,6 +2,13 @@
 
 This is a tutorial on importing data to TensorFlow.
 
+In my understanding, importing data to TensorFlow is one of the most
+important steps when using TensorFlow and Deep Learning models for
+engineering. Most models have already been implemented, even the weights
+are available. Utilizing these models is about either re-training the models
+or fine-tuning the models on new datasets. Importing data to TensorFlow is
+the step to start these tasks.
+
 ## Introduction
 
 Generally, there are four approaches to import data to TensorFlow Program:
