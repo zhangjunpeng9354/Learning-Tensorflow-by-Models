@@ -5,12 +5,7 @@ import numpy as np
 
 '''Explaining how to custom input for tensorflow models.
 
-Summary of available available approaches:
-1. Feeding: Python code provides the data when running each step,
-2. (Recommended) Reading from files: an input pipeline reads the data from files
-at the beginning of a TensorFlow graph,
-3. (Not Recommended) Pre-loaded data: a constant or variable in the TensorFlow graph
-holds all the data (for small data sets).
+
 '''
 
 
@@ -52,6 +47,8 @@ def input_pipeline(data_dir):
 
 
 if __name__ == '__main__':
+    sess = tf.Session()
+
     dataset1 = tf.contrib.data.Dataset.from_tensors(tf.random_uniform([4, 10]))
     print(dataset1.output_types)
     print(dataset1.output_shapes)
@@ -59,6 +56,38 @@ if __name__ == '__main__':
     dataset2 = tf.contrib.data.Dataset.from_tensor_slices(tf.random_uniform([4, 10]))
     print(dataset2.output_types)
     print(dataset2.output_shapes)
+
+    dataset3 = tf.contrib.data.Dataset.from_tensors(
+        (tf.random_uniform([4, 2], name='labels'),
+         tf.random_uniform([4, 10], name='features'))
+    )
+    print(dataset3.output_types)
+    print(dataset3.output_shapes)
+
+    dataset4 = tf.contrib.data.Dataset.from_tensor_slices(
+        (tf.random_uniform([4,2], name='labels'),
+         tf.random_uniform([4, 2000], name='features'))
+    )
+    print(dataset4.output_types)
+    print(dataset4.output_shapes)
+
+
+    dataset5 = tf.contrib.data.Dataset.range(100)
+    print(dataset5)
+    iterator = dataset5.make_one_shot_iterator()
+    next_element = iterator.get_next()
+
+    for i in range(10):
+        value = sess.run(next_element)
+        print(value)
+
+    iterator = dataset2.make_initializable_iterator()
+    next_element = iterator.get_next()
+
+    sess.run(iterator.initializer)
+    for i in range(4):
+        value = sess.run(next_element)
+        print(value)
 
 
 
