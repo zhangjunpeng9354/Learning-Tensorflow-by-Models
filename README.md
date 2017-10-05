@@ -21,11 +21,12 @@ Any feedback is welcomed.
 To use this tutorial for your exploration in TensorFlow, please clone or download
 this git to your machine.
 
-```git
+```
 git clone https://github.com/zhangjunpeng9354/Learning-Tensorflow-by-Models.git
 ```
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+After copying this project, experiments for this tutorial are located in ```test```
+folder. See Running for more details on how to run this experiments.
 
 ### Prerequisites
 
