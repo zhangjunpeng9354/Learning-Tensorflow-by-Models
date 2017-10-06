@@ -59,19 +59,32 @@ def _load_cifar10(path=DEFALFT_DATASET_DIR):
            test_images, test_labels
 
 
-def create_batch_dataset(session, path=DEFALFT_DATASET_DIR):
+def create_batch_dataset(session, batch_size, path=DEFALFT_DATASET_DIR):
     _training_images, _training_labels, _test_images, _test_labels = _load_cifar10(path=path)
 
     _image_placeholder = tf.placeholder(dtype=tf.float32, shape=_training_images.shape, name='unbatched_images')
     _label_placeholder = tf.placeholder(dtype=tf.float32, shape=_training_labels, name='unbatched_labels')
 
     # Create Dataset for training images and training labels.
+    # Then zip these two Datasets for less variables.
     _training_image_dataset = tf.contrib.data.Dataset.from_tensor_slices(_image_placeholder)
     _training_label_dataset = tf.contrib.data.Dataset.from_tensor_slices(_label_placeholder)
 
     _training_dataset = tf.contrib.data.Dataset.zip(
         (_training_image_dataset, _training_label_dataset)
     )
+
+    _training_dataset = _training_dataset.shuffle(1000)
+    _training_dataset = _training_dataset.batch(batch_size)
+    _training_dataset = _training_dataset.repeat()
+
+    _training_iterator = _training_dataset.make_initializable_iterator()
+
+    session.run(_training_iterator.initializer,
+                feed_dict={_image_placeholder: _training_images,
+                           _label_placeholder: _training_labels})
+
+
 
 
     return None
