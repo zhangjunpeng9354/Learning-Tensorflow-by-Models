@@ -84,7 +84,9 @@ def create_batch_dataset(session, batch_size, path=DEFALFT_DATASET_DIR):
                 feed_dict={_image_placeholder: _training_images,
                            _label_placeholder: _training_labels})
 
+    training_images, training_labels = _training_iterator.get_next()
 
 
 
-    return None
+
+    return training_images, training_labels
