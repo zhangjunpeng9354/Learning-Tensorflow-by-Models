@@ -10,6 +10,7 @@ import alexnet_cifar10.input as input
 import alexnet_cifar10.model as model
 
 CIFAR10_DIR = '/Users/Zhang/Research/Deep Learning Dataset/CIFAR/cifar-10-batches-py'
+CACHE_DIR = '~/notebook/alexnet_cifar10'
 
 BATCH_SIZE = 128
 NUM_ITERATION = 20000
@@ -35,6 +36,11 @@ def train():
         _train_op = model.train(_loss_op, _global_step)
 
         session.run(tf.global_variables_initializer())
+
+        merged = tf.summary.merge_all()
+        saver = tf.train.Saver()
+        tf_train_writer = tf.summary.FileWriter(CACHE_DIR, session.graph)
+
 
         for _ in range(NUM_ITERATION):
             start_time = time()
