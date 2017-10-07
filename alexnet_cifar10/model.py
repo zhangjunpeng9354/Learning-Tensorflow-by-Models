@@ -154,7 +154,7 @@ def loss(logits, labels):
     :return:
     '''
     with tf.variable_scope('loss'):
-        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+        cross_entropy = tf.nn.softmax_cross_entropy_with_logits(
             labels=labels, logits=logits, name='cross_entropy_per_example')
         cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
         tf.add_to_collection('losses', cross_entropy_mean)
@@ -168,15 +168,17 @@ def loss(logits, labels):
 
 def train(total_loss, global_step):
     # Decay the learning rate exponentially based on the number of steps.
-    lr = tf.train.exponential_decay(0.1,
-                                    global_step,
-                                    400 * 400,
-                                    0.1,
-                                    staircase=True)
+    # lr = tf.train.exponential_decay(0.1,
+    #                                 global_step,
+    #                                 400 * 400,
+    #                                 0.1,
+    #                                 staircase=True)
+
+    lr = 0.0005
     tf.summary.scalar('learning_rate', lr)
 
     optimizer = tf.train.GradientDescentOptimizer(lr)
-    grads = optimizer.minimize(total_loss)
+    grads = optimizer.compute_gradients(total_loss)
 
     appply_gradient_op = optimizer.apply_gradients(grads, global_step=global_step)
 
