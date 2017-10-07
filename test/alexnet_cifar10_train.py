@@ -17,9 +17,6 @@ NUM_ITERATION = 20000
 
 def train():
     with tf.Session() as session:
-
-
-
         _training_images, _training_labels = input.create_batch_dataset(session,
                                                                         BATCH_SIZE,
                                                                         path=CIFAR10_DIR)
@@ -41,7 +38,7 @@ def train():
 
         for _ in range(NUM_ITERATION):
             start_time = time()
-            __global_step, _ = session.run([_global_step, _training_accuracy_op])
+            __global_step, _ = session.run([_global_step, _train_op])
             duration = time() - start_time
 
             if (__global_step % 10) == 0:
