@@ -48,9 +48,11 @@ def train():
             duration = time() - start_time
 
             if (__global_step % 10) == 0:
-                __loss, __training_accuracy = session.run([_loss_op, _training_accuracy_op])
+                data_merged, __loss, __training_accuracy = session.run([merged, _loss_op, _training_accuracy_op])
                 _msg_training = 'Global Step: {0:>6}, accuracy: {1:>6.1%}, loss = {2:.2f} ({3:.1f} examples/sec, {4:.2f} sec/batch)'
                 print(_msg_training.format(__global_step, __training_accuracy, __loss, BATCH_SIZE / duration, duration))
+
+                tf_train_writer.add_summary(data_merged, __global_step)
 
     return None
 
