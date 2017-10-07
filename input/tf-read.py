@@ -49,66 +49,28 @@ def input_pipeline(data_dir):
 if __name__ == '__main__':
     sess = tf.Session()
 
-    dataset1 = tf.contrib.data.Dataset.from_tensors(tf.random_uniform([4, 10]))
-    print(dataset1.output_types)
-    print(dataset1.output_shapes)
-
-    dataset2 = tf.contrib.data.Dataset.from_tensor_slices(tf.random_uniform([4, 10]))
-    print(dataset2.output_types)
-    print(dataset2.output_shapes)
-
-    dataset3 = tf.contrib.data.Dataset.from_tensors(
-        (tf.random_uniform([4, 2], name='labels'),
-         tf.random_uniform([4, 10], name='features'))
+    dataset = tf.contrib.data.Dataset.from_tensor_slices(
+        tf.reshape(np.arange(200), [-1, 2])
     )
-    print(dataset3.output_types)
-    print(dataset3.output_shapes)
+    print(dataset.output_types)
+    print(dataset.output_shapes)
 
-    dataset4 = tf.contrib.data.Dataset.from_tensor_slices(
-        (tf.random_uniform([4,2], name='labels'),
-         tf.random_uniform([4, 2000], name='features'))
-    )
-    print(dataset4.output_types)
-    print(dataset4.output_shapes)
+    batch = dataset.batch(4)
+    print(batch.output_types)
+    print(batch.output_shapes)
 
-
-    dataset5 = tf.contrib.data.Dataset.range(100)
-    print(dataset5)
-    iterator = dataset5.make_one_shot_iterator()
-    next_element = iterator.get_next()
-
-    for i in range(10):
-        value = sess.run(next_element)
-        print(value)
-
-    iterator = dataset2.make_initializable_iterator()
-    next_element = iterator.get_next()
-
-    sess.run(iterator.initializer)
-    for i in range(4):
-        value = sess.run(next_element)
-        print(value)
-
-
-    dataset6 = tf.contrib.data.Dataset.from_tensor_slices(
-        tf.random_uniform([200, 2], name='features')
-    )
-    print(dataset6.output_types)
-    print(dataset6.output_shapes)
-
-    batch1 = dataset6.batch(4)
-    print(batch1.output_types)
-    print(batch1.output_shapes)
-
-    iterator = batch1.make_initializable_iterator()
+    iterator = batch.make_initializable_iterator()
     next_element = iterator.get_next()
 
     sess.run(iterator.initializer)
     for i in range(5):
-        value = sess.run(next_element)
-        print(value)
+        value1, value2 = sess.run([next_element, next_element])
+        print(value1, value2)
+
+    print('_' * 35)
+
+    value1, value2 = sess.run([next_element, next_element])
+    print(value1, value2)
 
 
 
-    # feeding()
-    # input_pipeline('/Users/Zhang/Research/Deep Learning Dataset/CIFAR/cifar-10-batches-py')

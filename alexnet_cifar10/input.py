@@ -63,7 +63,7 @@ def create_batch_dataset(session, batch_size, path=DEFALFT_DATASET_DIR):
     _training_images, _training_labels, _test_images, _test_labels = _load_cifar10(path=path)
 
     _image_placeholder = tf.placeholder(dtype=tf.float32, shape=_training_images.shape, name='unbatched_images')
-    _label_placeholder = tf.placeholder(dtype=tf.float32, shape=_training_labels, name='unbatched_labels')
+    _label_placeholder = tf.placeholder(dtype=tf.float32, shape=_training_labels.shape, name='unbatched_labels')
 
     # Create Dataset for training images and training labels.
     # Then zip these two Datasets for less variables.
