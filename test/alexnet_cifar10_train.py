@@ -9,8 +9,8 @@ import tensorflow as tf
 import alexnet_cifar10.input as input
 import alexnet_cifar10.model as model
 
-CIFAR10_DIR = '/Users/Zhang/Research/Deep Learning Dataset/CIFAR/cifar-10-batches-py'
-CACHE_DIR = '~/notebook/alexnet_cifar10'
+CIFAR10_DIR = '/home/ubuntu/datasets/cifar-10-batches-py'
+CACHE_DIR = '/home/ubuntu/datasets/cifar-10-batches-py/alexnet_cifar10'
 
 BATCH_SIZE = 128
 NUM_ITERATION = 20000

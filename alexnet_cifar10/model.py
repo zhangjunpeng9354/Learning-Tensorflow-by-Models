@@ -168,13 +168,13 @@ def loss(logits, labels):
 
 def train(total_loss, global_step):
     # Decay the learning rate exponentially based on the number of steps.
-    # lr = tf.train.exponential_decay(0.1,
-    #                                 global_step,
-    #                                 400 * 400,
-    #                                 0.1,
-    #                                 staircase=True)
+    lr = tf.train.exponential_decay(0.1,
+                                    global_step,
+                                    400 * 400,
+                                    0.1,
+                                    staircase=True)
 
-    lr = 0.0005
+    # lr = 0.0005
     tf.summary.scalar('learning_rate', lr)
 
     optimizer = tf.train.GradientDescentOptimizer(lr)
