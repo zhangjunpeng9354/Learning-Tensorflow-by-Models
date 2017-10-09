@@ -109,7 +109,7 @@ def inference(raw):
     else:
         pool1 = tf.nn.max_pool(norm1, [1, 3, 3, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool1')
 
-    conv2 = conv_layer(pool1, [5, 5, 48, 128], [1, 1, 1, 1],
+    conv2 = conv_layer(pool1, [5, 5, 48, 64], [1, 1, 1, 1],
                        data_format=data_format, name='conv2')
 
     norm2 = tf.nn.lrn(conv2, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm2')
@@ -141,12 +141,12 @@ def inference(raw):
     #
     # pool3_flat = tf.reshape(pool3, [-1, 4 * 4 * 128], name='flatten')
 
-    pool3_flat = tf.reshape(pool2, [-1, 8 * 8 * 128], name='flatten')
+    pool3_flat = tf.reshape(pool2, [-1, 8 * 8 * 64], name='flatten')
 
     # fc1 = fc_layer(pool3_flat, [4 * 4 * 128, 384], name='fc1', final=False)
-    fc1 = fc_layer(pool3_flat, [8 * 8 * 128, 2048], name='fc1', final=False)
+    fc1 = fc_layer(pool3_flat, [8 * 8 * 64, 384], name='fc1', final=False)
 
-    fc2 = fc_layer(fc1, [2048, 192], name='fc2', final=False)
+    fc2 = fc_layer(fc1, [384, 192], name='fc2', final=False)
 
     softmax_linear = fc_layer(fc2, [192, NUM_CLASS], name='fc3', final=True)
 

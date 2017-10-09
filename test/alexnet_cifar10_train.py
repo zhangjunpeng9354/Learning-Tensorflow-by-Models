@@ -22,8 +22,6 @@ def train():
                                                                         BATCH_SIZE,
                                                                         path=CIFAR10_DIR)
 
-        print(_training_labels.shape)
-
         _global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
 
         # Capture Tensorflow operations for required computation graphs.
