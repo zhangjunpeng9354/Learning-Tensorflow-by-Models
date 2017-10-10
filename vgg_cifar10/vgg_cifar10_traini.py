@@ -1,3 +1,5 @@
+from time import time
+
 import numpy as np
 import tensorflow as tf
 
@@ -9,8 +11,7 @@ Summary of available functions:
 
 '''
 
-
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 NUM_ITERATION = 60000
 
 NUM_CLASS = 10
@@ -18,7 +19,8 @@ NUM_IMAGE_CHANNEL = 3
 NUM_IMAGE_WIDTH = 32
 NUM_IMAGE_HEIGHT = 32
 
-CACHE_DIR='/home/ubuntu/datasets/notebook/tensorboard/vgg-cifar10'
+CACHE_DIR = '/home/ubuntu/notebook/tensorboard/vgg-cifar10'
+# CACHE_DIR = '/Users/Zhang/Research/Programming/Learning-Tensorflow-by-Models'
 
 
 def load_cifar10(path=None):
@@ -85,7 +87,7 @@ def conv_layer(input, kernel_shape, stride, data_format='NCHW', name='conv'):
         kernel = tf.get_variable('W', shape=kernel_shape,
                                  initializer=tf.truncated_normal_initializer(stddev=0.05, dtype=tf.float32),
                                  dtype=tf.float32)
-        bias = tf.get_variable('b', kernel_shape[3], initializer=tf.constant_initializer(0.1))
+        bias = tf.get_variable('b', kernel_shape[3], initializer=tf.constant_initializer(0.001))
 
         conv = tf.nn.conv2d(input, kernel, stride, 'SAME', data_format=data_format)
         pre_activation = tf.nn.bias_add(conv, bias, data_format=data_format)
@@ -150,51 +152,49 @@ def inference(raw, model=tf.estimator.ModeKeys.TRAIN):
     conv1 = conv_layer(x, [3, 3, 3, 64], [1, 1, 1, 1],
                        data_format=data_format, name='conv1')
     if data_format == 'NCHW':
-        pool1 = tf.nn.max_pool(conv1, [1, 1, 2, 2], [1, 1, 1, 1], padding='SAME', data_format=data_format, name='pool1')
+        pool1 = tf.nn.max_pool(conv1, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool1')
     else:
-        pool1 = tf.nn.max_pool(conv1, [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME', data_format=data_format, name='pool1')
+        pool1 = tf.nn.max_pool(conv1, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool1')
 
-    # convolution group 2, output - [16, 16, 128]
+    # convolution group 2, output - [8, 8, 128]
     conv2 = conv_layer(pool1, [3, 3, 64, 128], [1, 1, 1, 1],
                        data_format=data_format, name='conv2')
     if data_format == 'NCHW':
-        pool2 = tf.nn.max_pool(conv2, [1, 1, 2, 2], [1, 1, 1, 1], padding='SAME', data_format=data_format, name='pool2')
+        pool2 = tf.nn.max_pool(conv2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool2')
     else:
-        pool2 = tf.nn.max_pool(conv2, [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME', data_format=data_format, name='pool2')
+        pool2 = tf.nn.max_pool(conv2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool2')
 
-    # convolution group 3, output - [8, 8, 256]
+    # convolution group 3, output - [4, 4, 256]
     conv3_1 = conv_layer(pool2, [3, 3, 128, 256], [1, 1, 1, 1],
                          data_format=data_format, name='conv3_1')
     conv3_2 = conv_layer(conv3_1, [3, 3, 256, 256], [1, 1, 1, 1],
                          data_format=data_format, name='conv3_2')
     if data_format == 'NCHW':
-        pool3 = tf.nn.max_pool(conv3_2, [1, 1, 2, 2], [1, 1, 1, 1], padding='SAME', data_format=data_format,
+        pool3 = tf.nn.max_pool(conv3_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
                                name='pool3')
     else:
-        pool3 = tf.nn.max_pool(conv3_2, [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME', data_format=data_format,
+        pool3 = tf.nn.max_pool(conv3_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool3')
 
-    # convolution group 4, output - [4, 4, 512]
-    conv4_1 = conv_layer(pool3, [3, 3, 128, 256], [1, 1, 1, 1],
+    # convolution group 4, output - [2, 2, 512]
+    conv4_1 = conv_layer(pool3, [3, 3, 256, 512], [1, 1, 1, 1],
                          data_format=data_format, name='conv4_1')
-    conv4_2 = conv_layer(conv4_1, [3, 3, 256, 256], [1, 1, 1, 1],
+    conv4_2 = conv_layer(conv4_1, [3, 3, 512, 512], [1, 1, 1, 1],
                          data_format=data_format, name='conv4_2')
     if data_format == 'NCHW':
-        pool4 = tf.nn.max_pool(conv4_2, [1, 1, 2, 2], [1, 1, 1, 1], padding='SAME', data_format=data_format,
+        pool4 = tf.nn.max_pool(conv4_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
                                name='pool4')
     else:
-        pool4 = tf.nn.max_pool(conv4_2, [1, 2, 2, 1], [1, 1, 1, 1], padding='SAME', data_format=data_format,
+        pool4 = tf.nn.max_pool(conv4_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool4')
 
-    pool4_flat = tf.reshape(pool2, [-1, 4 * 4 * 512], name='flatten')
+    pool4_flat = tf.reshape(pool4, [-1, 2 * 2 * 512], name='flatten')
 
-    fc1 = fc_layer(pool4_flat, [4 * 4 * 512, 2048], name='fc1', final=False)
+    fc1 = fc_layer(pool4_flat, [2 * 2 * 512, 512], name='fc1', final=False)
 
-    fc2 = fc_layer(fc1, [2048, 512], name='fc2', final=False)
+    fc2 = fc_layer(fc1, [512, 192], name='fc2', final=False)
 
-    fc3 = fc_layer(fc2, [512, 128], name='fc2', final=False)
-
-    softmax_linear = fc_layer(fc3, [192, NUM_CLASS], name='fc3', final=True)
+    softmax_linear = fc_layer(fc2, [192, NUM_CLASS], name='fc3', final=True)
 
     return softmax_linear
 
@@ -224,13 +224,13 @@ def train(total_loss, global_step):
     # lr = tf.train.exponential_decay(0.01,
     #                                 global_step,
     #                                 2000,
-    #                                 0.5,
+    #                                 0.1,
     #                                 staircase=True)
 
-    lr = 0.0005
+    lr = 0.0001
     tf.summary.scalar('learning_rate', lr)
 
-    optimizer = tf.train.GradientDescentOptimizer(lr)
+    optimizer = tf.train.RMSPropOptimizer(lr)
     grads = optimizer.compute_gradients(total_loss)
 
     appply_gradient_op = optimizer.apply_gradients(grads, global_step=global_step)
@@ -259,23 +259,18 @@ if __name__ == '__main__':
     # load data
     train_images, train_labels, test_images, test_labels = load_cifar10()
 
-    # build train operation and variables.
-    train_x = tf.placeholder(tf.float32, shape=[BATCH_SIZE, 3 * 32 * 32], name='train_images')
-    train_y = tf.placeholder(tf.float32, shape=[BATCH_SIZE, NUM_CLASS], name='train_label')
-
-    train_logits = inference(train_images)
-    loss_op = loss(train_logits, train_y)
-    train_accuracy = evaluate(train_logits, loss_op, name='TRAIN_ACC')
-
-    # build evaluataion operation and variables.
-    eval_images = tf.convert_to_tensor(test_images)
-    eval_labels = tf.convert_to_tensor(test_labels)
-
-    eval_logits = inference(eval_images)
-    eval_accuracy = evaluate(eval_logits, eval_labels, name='TEST_ACC')
-
     # build variables for training procedure.
     global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
+
+    # build train operation and variables.
+    train_x = tf.placeholder(tf.float32, shape=[None, NUM_IMAGE_WIDTH * NUM_IMAGE_HEIGHT * NUM_IMAGE_CHANNEL], name='train_images')
+    train_y = tf.placeholder(tf.float32, shape=[None, NUM_CLASS], name='train_label')
+
+    train_logits = inference(train_x)
+    loss_op = loss(train_logits, train_y)
+    train_op = train(loss_op, global_step)
+
+    accuacy_op = evaluate(train_logits, train_y, name='Train')
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
@@ -284,13 +279,42 @@ if __name__ == '__main__':
         saver = tf.train.Saver()
         tf_train_writer = tf.summary.FileWriter(CACHE_DIR, session.graph)
 
+        for iter in range(NUM_ITERATION):
 
+            randidx = np.random.randint(len(train_images), size=BATCH_SIZE)
+            batch_train_images = train_images[randidx]
+            batch_train_labels = train_labels[randidx]
 
+            start_time = time()
+            _global_step, _ = session.run([global_step, train_op],
+                                          feed_dict={train_x: batch_train_images,
+                                                     train_y: batch_train_labels})
+            duration = time() - start_time
 
+            if (iter + 1) % 10 == 0:
+                _loss, _train_accuracy = session.run([loss_op, accuacy_op],
+                                                     feed_dict={train_x: batch_train_images,
+                                                                train_y: batch_train_labels})
+                msg = "Global Step: {0:>6}, accuracy: {1:>6.1%}, loss = {2:.2f} ({3:.1f} examples/sec, {4:.2f} sec/batch)"
+                print(msg.format(_global_step, _train_accuracy, _loss, BATCH_SIZE / duration, duration))
 
+            if (iter + 1) % 100 == 0:
+                data_merged, global_step_iter = session.run([merged, global_step],
+                                                            feed_dict={train_x: batch_train_images,
+                                                                       train_y: batch_train_labels}
+                                                            )
 
+                _eval_accuracy = session.run(accuacy_op,
+                                             feed_dict={train_x: test_images,
+                                                        train_y: test_labels})
 
+                print("Accuracy on Test-Set: {0:.2f}%".format(_eval_accuracy * 100.0))
 
+                summary = tf.Summary(value=[
+                    tf.Summary.Value(tag="Accuracy/Test", simple_value=_eval_accuracy),
+                ])
+                tf_train_writer.add_summary(data_merged, global_step_iter)
+                tf_train_writer.add_summary(summary, global_step_iter)
 
-
-
+                saver.save(session, save_path=CACHE_DIR, global_step=global_step)
+                print("Saved checkpoint.")
