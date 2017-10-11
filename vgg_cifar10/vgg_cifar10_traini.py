@@ -85,7 +85,7 @@ def conv_layer(input, kernel_shape, stride, data_format='NCHW', name='conv'):
     '''
     with tf.variable_scope(name) as scope:
         kernel = tf.get_variable('W', shape=kernel_shape,
-                                 initializer=tf.truncated_normal_initializer(stddev=0.05, dtype=tf.float32),
+                                 initializer=tf.truncated_normal_initializer(stddev=0.01, dtype=tf.float32),
                                  dtype=tf.float32)
         bias = tf.get_variable('b', kernel_shape[3], initializer=tf.constant_initializer(0.001))
 
@@ -114,9 +114,9 @@ def fc_layer(input, size, name='fc', final=False):
     '''
     with tf.variable_scope(name) as scope:
         weights = tf.get_variable('W', shape=size,
-                                  initializer=tf.truncated_normal_initializer(stddev=0.04, dtype=tf.float32),
+                                  initializer=tf.truncated_normal_initializer(stddev=0.01, dtype=tf.float32),
                                   dtype=tf.float32)
-        weight_decay = tf.multiply(tf.nn.l2_loss(weights), 0.004, name='weight_loss')
+        weight_decay = tf.multiply(tf.nn.l2_loss(weights), 0.0005, name='weight_loss')
         tf.add_to_collection('losses', weight_decay)
 
         biases = tf.get_variable('b', size[1], initializer=tf.constant_initializer(0.1))
@@ -188,17 +188,29 @@ def inference(raw, keep_prob):
         pool4 = tf.nn.max_pool(conv4_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool4')
 
-    pool4_flat = tf.reshape(pool4, [-1, 2 * 2 * 512], name='flatten')
+    # convolution group 5, output - [1, 1, 512]
+    conv5_1 = conv_layer(pool4, [3, 3, 512, 512], [1, 1, 1, 1],
+                         data_format=data_format, name='conv5_1')
+    conv5_2 = conv_layer(conv5_1, [3, 3, 512, 512], [1, 1, 1, 1],
+                         data_format=data_format, name='conv5_2')
+    if data_format == 'NCHW':
+        pool5 = tf.nn.max_pool(conv5_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
+                               name='pool5')
+    else:
+        pool5 = tf.nn.max_pool(conv5_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
+                               name='pool5')
 
-    fc1 = fc_layer(pool4_flat, [2 * 2 * 512, 512], name='fc1', final=False)
+    pool5_flat = tf.reshape(pool5, [-1, 1 * 1 * 512], name='flatten')
+
+    fc1 = fc_layer(pool5_flat, [1 * 1 * 512, 128], name='fc1', final=False)
 
     droput1 = tf.nn.dropout(fc1, keep_prob)
 
-    fc2 = fc_layer(droput1, [512, 192], name='fc2', final=False)
+    fc2 = fc_layer(droput1, [128, 64], name='fc2', final=False)
 
     droput2 = tf.nn.dropout(fc2, keep_prob)
 
-    softmax_linear = fc_layer(droput2, [192, NUM_CLASS], name='fc3', final=True)
+    softmax_linear = fc_layer(droput2, [64, NUM_CLASS], name='fc3', final=True)
 
     return softmax_linear
 
@@ -224,15 +236,21 @@ def loss(logits, labels):
 
 
 def train(total_loss, global_step):
-    # Decay the learning rate exponentially based on the number of steps.
-    # lr = tf.train.exponential_decay(0.01,
-    #                                 global_step,
-    #                                 2000,
-    #                                 0.1,
-    #                                 staircase=True)
+    # Decay the learning rate exponentially based on the number of steps. best
+    lr = tf.train.exponential_decay(0.001,
+                                    global_step,
+                                    400,
+                                    0.9,
+                                    staircase=True)
 
-    lr = 0.0001
-    tf.summary.scalar('learning_rate', lr)
+    # lr = tf.train.exponential_decay(0.001,
+    #                                 global_step,
+    #                                 2500,
+    #                                 0.316,
+    #                                 staircase=True) not good
+
+    # lr = 0.0001
+    tf.summary.scalar('learning_rate/lr', lr)
 
     optimizer = tf.train.RMSPropOptimizer(lr)
     grads = optimizer.compute_gradients(total_loss)
