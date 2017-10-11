@@ -131,7 +131,7 @@ def fc_layer(input, size, name='fc', final=False):
     return fc
 
 
-def inference(raw, model=tf.estimator.ModeKeys.TRAIN):
+def inference(raw, keep_prob):
     '''
 
     :param raw:
@@ -192,9 +192,13 @@ def inference(raw, model=tf.estimator.ModeKeys.TRAIN):
 
     fc1 = fc_layer(pool4_flat, [2 * 2 * 512, 512], name='fc1', final=False)
 
-    fc2 = fc_layer(fc1, [512, 192], name='fc2', final=False)
+    droput1 = tf.nn.dropout(fc1, keep_prob)
 
-    softmax_linear = fc_layer(fc2, [192, NUM_CLASS], name='fc3', final=True)
+    fc2 = fc_layer(droput1, [512, 192], name='fc2', final=False)
+
+    droput2 = tf.nn.dropout(fc2, keep_prob)
+
+    softmax_linear = fc_layer(droput2, [192, NUM_CLASS], name='fc3', final=True)
 
     return softmax_linear
 
@@ -261,12 +265,13 @@ if __name__ == '__main__':
 
     # build variables for training procedure.
     global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
+    keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     # build train operation and variables.
     train_x = tf.placeholder(tf.float32, shape=[None, NUM_IMAGE_WIDTH * NUM_IMAGE_HEIGHT * NUM_IMAGE_CHANNEL], name='train_images')
     train_y = tf.placeholder(tf.float32, shape=[None, NUM_CLASS], name='train_label')
 
-    train_logits = inference(train_x)
+    train_logits = inference(train_x, keep_prob)
     loss_op = loss(train_logits, train_y)
     train_op = train(loss_op, global_step)
 
@@ -288,25 +293,29 @@ if __name__ == '__main__':
             start_time = time()
             _global_step, _ = session.run([global_step, train_op],
                                           feed_dict={train_x: batch_train_images,
-                                                     train_y: batch_train_labels})
+                                                     train_y: batch_train_labels,
+                                                     keep_prob: 0.5})
             duration = time() - start_time
 
             if (iter + 1) % 10 == 0:
                 _loss, _train_accuracy = session.run([loss_op, accuacy_op],
                                                      feed_dict={train_x: batch_train_images,
-                                                                train_y: batch_train_labels})
+                                                                train_y: batch_train_labels,
+                                                                keep_prob: 1.0})
                 msg = "Global Step: {0:>6}, accuracy: {1:>6.1%}, loss = {2:.2f} ({3:.1f} examples/sec, {4:.2f} sec/batch)"
                 print(msg.format(_global_step, _train_accuracy, _loss, BATCH_SIZE / duration, duration))
 
             if (iter + 1) % 100 == 0:
                 data_merged, global_step_iter = session.run([merged, global_step],
                                                             feed_dict={train_x: batch_train_images,
-                                                                       train_y: batch_train_labels}
+                                                                       train_y: batch_train_labels,
+                                                                       keep_prob: 1.0}
                                                             )
 
                 _eval_accuracy = session.run(accuacy_op,
                                              feed_dict={train_x: test_images,
-                                                        train_y: test_labels})
+                                                        train_y: test_labels,
+                                                        keep_prob: 1.0})
 
                 print("Accuracy on Test-Set: {0:.2f}%".format(_eval_accuracy * 100.0))
 
