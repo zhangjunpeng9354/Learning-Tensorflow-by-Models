@@ -305,8 +305,8 @@ def evaluate(logits, labels, name='Train'):
 if __name__ == '__main__':
     # load data
     train_images, train_labels, test_images, test_labels = load_cifar10()
-    train_images = (train_images - 128) / 255.0
-    test_images = (test_images - 128) / 255.0
+    train_images = (train_images - 128) / 128.0
+    test_images = (test_images - 128) / 128.0
 
     # build variables for training procedure.
     global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
