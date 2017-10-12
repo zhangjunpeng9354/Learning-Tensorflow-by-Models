@@ -1,4 +1,5 @@
 from time import time
+import math
 
 import numpy as np
 import tensorflow as tf
@@ -20,6 +21,8 @@ NUM_IMAGE_WIDTH = 32
 NUM_IMAGE_HEIGHT = 32
 
 CACHE_DIR = '/home/ubuntu/notebook/tensorboard/vgg-cifar10'
+
+
 # CACHE_DIR = '/Users/Zhang/Research/Programming/Learning-Tensorflow-by-Models'
 
 
@@ -85,8 +88,15 @@ def conv_layer(input, kernel_shape, stride, data_format='NCHW', name='conv'):
     '''
     with tf.variable_scope(name) as scope:
         kernel = tf.get_variable('W', shape=kernel_shape,
-                                 initializer=tf.truncated_normal_initializer(stddev=0.01, dtype=tf.float32),
+                                 initializer=tf.truncated_normal_initializer(
+                                     stddev=math.sqrt(2.0 / (kernel_shape[0] * kernel_shape[1] * kernel_shape[2])),
+                                     dtype=tf.float32),
                                  dtype=tf.float32)
+        # kernel = tf.get_variable('W', shape=kernel_shape,
+        #                          initializer=tf.truncated_normal_initializer(
+        #                              stddev=0.05,
+        #                              dtype=tf.float32),
+        #                          dtype=tf.float32)
         bias = tf.get_variable('b', kernel_shape[3], initializer=tf.constant_initializer(0.001))
 
         conv = tf.nn.conv2d(input, kernel, stride, 'SAME', data_format=data_format)
@@ -114,12 +124,19 @@ def fc_layer(input, size, name='fc', final=False):
     '''
     with tf.variable_scope(name) as scope:
         weights = tf.get_variable('W', shape=size,
-                                  initializer=tf.truncated_normal_initializer(stddev=0.01, dtype=tf.float32),
+                                  initializer=tf.truncated_normal_initializer(
+                                      stddev=math.sqrt(1.0 / (size[0]+size[1])),
+                                      dtype=tf.float32),
                                   dtype=tf.float32)
+        # weights = tf.get_variable('W', shape=size,
+        #                           initializer=tf.truncated_normal_initializer(
+        #                               stddev=0.01,
+        #                               dtype=tf.float32),
+        #                           dtype=tf.float32)
         weight_decay = tf.multiply(tf.nn.l2_loss(weights), 0.0005, name='weight_loss')
         tf.add_to_collection('losses', weight_decay)
 
-        biases = tf.get_variable('b', size[1], initializer=tf.constant_initializer(0.1))
+        biases = tf.get_variable('b', size[1], initializer=tf.constant_initializer(0.0001))
 
         if final is True:
             fc = tf.add(tf.matmul(input, weights), biases, name=scope.name)
@@ -151,53 +168,62 @@ def inference(raw, keep_prob):
     # convolution group 1, output - [16, 16, 64]
     conv1 = conv_layer(x, [3, 3, 3, 64], [1, 1, 1, 1],
                        data_format=data_format, name='conv1')
+    norm1 = tf.nn.lrn(conv1, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm1')
+
     if data_format == 'NCHW':
-        pool1 = tf.nn.max_pool(conv1, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool1')
+        pool1 = tf.nn.max_pool(norm1, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool1')
     else:
-        pool1 = tf.nn.max_pool(conv1, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool1')
+        pool1 = tf.nn.max_pool(norm1, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool1')
 
     # convolution group 2, output - [8, 8, 128]
     conv2 = conv_layer(pool1, [3, 3, 64, 128], [1, 1, 1, 1],
                        data_format=data_format, name='conv2')
+    norm2 = tf.nn.lrn(conv2, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm2')
     if data_format == 'NCHW':
-        pool2 = tf.nn.max_pool(conv2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool2')
+        pool2 = tf.nn.max_pool(norm2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool2')
     else:
-        pool2 = tf.nn.max_pool(conv2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool2')
+        pool2 = tf.nn.max_pool(norm2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool2')
 
     # convolution group 3, output - [4, 4, 256]
     conv3_1 = conv_layer(pool2, [3, 3, 128, 256], [1, 1, 1, 1],
                          data_format=data_format, name='conv3_1')
-    conv3_2 = conv_layer(conv3_1, [3, 3, 256, 256], [1, 1, 1, 1],
+    norm3_1 = tf.nn.lrn(conv3_1, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm3_1')
+    conv3_2 = conv_layer(norm3_1, [3, 3, 256, 256], [1, 1, 1, 1],
                          data_format=data_format, name='conv3_2')
+    norm3_2 = tf.nn.lrn(conv3_2, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm3_2')
     if data_format == 'NCHW':
-        pool3 = tf.nn.max_pool(conv3_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
+        pool3 = tf.nn.max_pool(norm3_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
                                name='pool3')
     else:
-        pool3 = tf.nn.max_pool(conv3_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
+        pool3 = tf.nn.max_pool(norm3_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool3')
 
     # convolution group 4, output - [2, 2, 512]
     conv4_1 = conv_layer(pool3, [3, 3, 256, 512], [1, 1, 1, 1],
                          data_format=data_format, name='conv4_1')
-    conv4_2 = conv_layer(conv4_1, [3, 3, 512, 512], [1, 1, 1, 1],
+    norm4_1 = tf.nn.lrn(conv4_1, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm4_1')
+    conv4_2 = conv_layer(norm4_1, [3, 3, 512, 512], [1, 1, 1, 1],
                          data_format=data_format, name='conv4_2')
+    norm4_2 = tf.nn.lrn(conv4_2, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm4_2')
     if data_format == 'NCHW':
-        pool4 = tf.nn.max_pool(conv4_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
+        pool4 = tf.nn.max_pool(norm4_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
                                name='pool4')
     else:
-        pool4 = tf.nn.max_pool(conv4_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
+        pool4 = tf.nn.max_pool(norm4_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool4')
 
     # convolution group 5, output - [1, 1, 512]
     conv5_1 = conv_layer(pool4, [3, 3, 512, 512], [1, 1, 1, 1],
                          data_format=data_format, name='conv5_1')
-    conv5_2 = conv_layer(conv5_1, [3, 3, 512, 512], [1, 1, 1, 1],
+    norm5_1 = tf.nn.lrn(conv5_1, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm5_1')
+    conv5_2 = conv_layer(norm5_1, [3, 3, 512, 512], [1, 1, 1, 1],
                          data_format=data_format, name='conv5_2')
+    norm5_1 = tf.nn.lrn(conv5_2, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm5_2')
     if data_format == 'NCHW':
-        pool5 = tf.nn.max_pool(conv5_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
+        pool5 = tf.nn.max_pool(norm5_1, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
                                name='pool5')
     else:
-        pool5 = tf.nn.max_pool(conv5_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
+        pool5 = tf.nn.max_pool(norm5_1, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool5')
 
     pool5_flat = tf.reshape(pool5, [-1, 1 * 1 * 512], name='flatten')
@@ -237,9 +263,9 @@ def loss(logits, labels):
 
 def train(total_loss, global_step):
     # Decay the learning rate exponentially based on the number of steps. best
-    lr = tf.train.exponential_decay(0.001,
+    lr = tf.train.exponential_decay(0.005,
                                     global_step,
-                                    400,
+                                    500,
                                     0.9,
                                     staircase=True)
 
@@ -249,7 +275,7 @@ def train(total_loss, global_step):
     #                                 0.316,
     #                                 staircase=True) not good
 
-    # lr = 0.0001
+    # lr = 0.0005
     tf.summary.scalar('learning_rate/lr', lr)
 
     optimizer = tf.train.RMSPropOptimizer(lr)
@@ -267,12 +293,11 @@ def train(total_loss, global_step):
 
 
 def evaluate(logits, labels, name='Train'):
-    with tf.variable_scope(name) as scope:
-        y_pred_cls = tf.argmax(logits, axis=1)
-        correct_prediction = tf.equal(y_pred_cls, tf.argmax(labels, axis=1))
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    y_pred_cls = tf.argmax(logits, axis=1)
+    correct_prediction = tf.equal(y_pred_cls, tf.argmax(labels, axis=1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-        tf.summary.scalar('Accuracy/{}'.format(scope.name), accuracy)
+    tf.summary.scalar('Accuracy/{}'.format(name), accuracy)
 
     return accuracy
 
@@ -280,13 +305,16 @@ def evaluate(logits, labels, name='Train'):
 if __name__ == '__main__':
     # load data
     train_images, train_labels, test_images, test_labels = load_cifar10()
+    train_images = (train_images - 128) / 255.0
+    test_images = (test_images - 128) / 255.0
 
     # build variables for training procedure.
     global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     # build train operation and variables.
-    train_x = tf.placeholder(tf.float32, shape=[None, NUM_IMAGE_WIDTH * NUM_IMAGE_HEIGHT * NUM_IMAGE_CHANNEL], name='train_images')
+    train_x = tf.placeholder(tf.float32, shape=[None, NUM_IMAGE_WIDTH * NUM_IMAGE_HEIGHT * NUM_IMAGE_CHANNEL],
+                             name='train_images')
     train_y = tf.placeholder(tf.float32, shape=[None, NUM_CLASS], name='train_label')
 
     train_logits = inference(train_x, keep_prob)
