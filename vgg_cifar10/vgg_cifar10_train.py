@@ -168,7 +168,7 @@ def inference(raw, keep_prob):
     # convolution group 1, output - [16, 16, 64]
     conv1 = conv_layer(x, [3, 3, 3, 64], [1, 1, 1, 1],
                        data_format=data_format, name='conv1')
-    norm1 = tf.nn.lrn(conv1, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm1')
+    norm1 = tf.nn.lrn(conv1, depth_radius=5, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm1')
 
     if data_format == 'NCHW':
         pool1 = tf.nn.max_pool(norm1, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool1')
@@ -178,7 +178,7 @@ def inference(raw, keep_prob):
     # convolution group 2, output - [8, 8, 128]
     conv2 = conv_layer(pool1, [3, 3, 64, 128], [1, 1, 1, 1],
                        data_format=data_format, name='conv2')
-    norm2 = tf.nn.lrn(conv2, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm2')
+    norm2 = tf.nn.lrn(conv2, depth_radius=5, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm2')
     if data_format == 'NCHW':
         pool2 = tf.nn.max_pool(norm2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool2')
     else:
@@ -187,10 +187,10 @@ def inference(raw, keep_prob):
     # convolution group 3, output - [4, 4, 256]
     conv3_1 = conv_layer(pool2, [3, 3, 128, 256], [1, 1, 1, 1],
                          data_format=data_format, name='conv3_1')
-    norm3_1 = tf.nn.lrn(conv3_1, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm3_1')
+    norm3_1 = tf.nn.lrn(conv3_1, depth_radius=5, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm3_1')
     conv3_2 = conv_layer(norm3_1, [3, 3, 256, 256], [1, 1, 1, 1],
                          data_format=data_format, name='conv3_2')
-    norm3_2 = tf.nn.lrn(conv3_2, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm3_2')
+    norm3_2 = tf.nn.lrn(conv3_2, depth_radius=5, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm3_2')
     if data_format == 'NCHW':
         pool3 = tf.nn.max_pool(norm3_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
                                name='pool3')
@@ -201,10 +201,10 @@ def inference(raw, keep_prob):
     # convolution group 4, output - [2, 2, 512]
     conv4_1 = conv_layer(pool3, [3, 3, 256, 512], [1, 1, 1, 1],
                          data_format=data_format, name='conv4_1')
-    norm4_1 = tf.nn.lrn(conv4_1, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm4_1')
+    norm4_1 = tf.nn.lrn(conv4_1, depth_radius=5, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm4_1')
     conv4_2 = conv_layer(norm4_1, [3, 3, 512, 512], [1, 1, 1, 1],
                          data_format=data_format, name='conv4_2')
-    norm4_2 = tf.nn.lrn(conv4_2, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm4_2')
+    norm4_2 = tf.nn.lrn(conv4_2, depth_radius=5, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm4_2')
     if data_format == 'NCHW':
         pool4 = tf.nn.max_pool(norm4_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
                                name='pool4')
@@ -215,10 +215,10 @@ def inference(raw, keep_prob):
     # convolution group 5, output - [1, 1, 512]
     conv5_1 = conv_layer(pool4, [3, 3, 512, 512], [1, 1, 1, 1],
                          data_format=data_format, name='conv5_1')
-    norm5_1 = tf.nn.lrn(conv5_1, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm5_1')
+    norm5_1 = tf.nn.lrn(conv5_1, depth_radius=5, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm5_1')
     conv5_2 = conv_layer(norm5_1, [3, 3, 512, 512], [1, 1, 1, 1],
                          data_format=data_format, name='conv5_2')
-    norm5_1 = tf.nn.lrn(conv5_2, depth_radius=4, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm5_2')
+    norm5_1 = tf.nn.lrn(conv5_2, depth_radius=5, bias=2.0, alpha=0.001 / 9.0, beta=0.75, name='norm5_2')
     if data_format == 'NCHW':
         pool5 = tf.nn.max_pool(norm5_1, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
                                name='pool5')
@@ -263,7 +263,7 @@ def loss(logits, labels):
 
 def train(total_loss, global_step):
     # Decay the learning rate exponentially based on the number of steps. best
-    lr = tf.train.exponential_decay(0.005,
+    lr = tf.train.exponential_decay(0.001,
                                     global_step,
                                     500,
                                     0.9,
