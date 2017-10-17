@@ -99,8 +99,8 @@ def conv_layer(input, kernel_shape, stride, data_format='NCHW', name='conv'):
         pre_activation = tf.nn.bias_add(conv, bias, data_format=data_format)
         conv = tf.nn.relu(pre_activation, name=scope.name)
 
-        tf.summary.histogram('Convolution_layers/{}_{}'.format(name, 'activation'), conv)
-        tf.summary.scalar('Convolution_layers/{}_{}'.format(name, 'sparsity'), tf.nn.zero_fraction(conv))
+        tf.summary.histogram('activation', conv)
+        tf.summary.scalar('sparsity', tf.nn.zero_fraction(conv))
 
     return conv
 
@@ -120,18 +120,19 @@ def conv_bn_layer(input, kernel_shape, stride, is_train, data_format='NCHW', nam
         conv = tf.nn.conv2d(input, kernel, stride, 'SAME', data_format=data_format)
 
         if is_train is True:
-            batch_norm = tf.contrib.layers.batch_norm(conv, scale=True, is_training=True, reuse=None,
-                                                      data_format=data_format,
+            batch_norm = tf.contrib.layers.batch_norm(conv, decay=0.9, scale=True, is_training=True, reuse=None,
+                                                      data_format=data_format, fused=True,
                                                       scope=scope)
         else:
-            batch_norm = tf.contrib.layers.batch_norm(conv, scale=True, is_training=False, reuse=True,
-                                                      data_format=data_format,
+            batch_norm = tf.contrib.layers.batch_norm(conv, decay=0.9, scale=True, is_training=False, reuse=True,
+                                                      data_format=data_format, fused=True,
                                                       scope=scope)
 
         conv = tf.nn.relu(batch_norm, name=scope.name)
 
-        tf.summary.histogram('Convolution_layers/{}_{}'.format(name, 'activation'), conv)
-        tf.summary.scalar('Convolution_layers/{}_{}'.format(name, 'sparsity'), tf.nn.zero_fraction(conv))
+        if is_train:
+            tf.summary.histogram('activation', conv)
+            tf.summary.scalar('sparsity', tf.nn.zero_fraction(conv))
 
     return conv
 
@@ -169,8 +170,10 @@ def fc_layer(input, size, is_train, name='fc', final=False):
             fc = tf.add(tf.matmul(input, weights), biases, name=scope.name)
         else:
             fc = tf.nn.relu(tf.matmul(input, weights) + biases, name=scope.name)
-            tf.summary.histogram('Fully_connected_layers/{}_{}'.format(name, 'activation'), fc)
-            tf.summary.scalar('Fully_connected_layers/{}_{}'.format(name, 'sparsity'), tf.nn.zero_fraction(fc))
+
+        if is_train:
+            tf.summary.histogram('activation', fc)
+            tf.summary.scalar('sparsity', tf.nn.zero_fraction(fc))
 
     return fc
 
@@ -305,7 +308,7 @@ def loss(logits, labels):
 
 def train(total_loss, global_step):
     # Decay the learning rate exponentially based on the number of steps. best
-    lr = tf.train.exponential_decay(0.001,
+    lr = tf.train.exponential_decay(0.005,
                                     global_step,
                                     500,
                                     0.9,
@@ -320,12 +323,13 @@ def train(total_loss, global_step):
     # lr = 0.0005
     tf.summary.scalar('learning_rate/lr', lr)
 
-    optimizer = tf.train.GradientDescentOptimizer(lr)
+    optimizer = tf.train.AdagradOptimizer(lr)
 
     bn_update_op = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(bn_update_op):
         grads = optimizer.compute_gradients(total_loss)
         apply_gradient_op = optimizer.apply_gradients(grads, global_step=global_step)
+
 
     for grad, var in grads:
         if grad is not None:
@@ -336,13 +340,14 @@ def train(total_loss, global_step):
     return apply_gradient_op
 
 
-def evaluate(logits, labels, name='Train'):
+def evaluate(logits, labels, is_train, name='Train'):
     with tf.variable_scope('Accuracy'):
         y_pred_cls = tf.argmax(logits, axis=1)
         correct_prediction = tf.equal(y_pred_cls, tf.argmax(labels, axis=1))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-        tf.summary.scalar('Accuracy/{}'.format(name), accuracy)
+        if is_train:
+            tf.summary.scalar(name, accuracy)
 
     return accuracy
 
@@ -365,10 +370,10 @@ if __name__ == '__main__':
     train_logits = inference(input_x, True, keep_prob)
     loss_op = loss(train_logits, input_y)
     train_op = train(loss_op, global_step)
-    train_accuacy_op = evaluate(train_logits, input_y, name='Train')
+    train_accuacy_op = evaluate(train_logits, input_y, True, name='Train')
 
     eval_logits = inference(input_x, False, keep_prob)
-    eval_accuacy_op = evaluate(eval_logits, input_y, name='Train')
+    eval_accuacy_op = evaluate(eval_logits, input_y, False, name='Test')
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
@@ -387,7 +392,7 @@ if __name__ == '__main__':
             session.run(train_op,
                         feed_dict={input_x: batch_train_images,
                                    input_y: batch_train_labels,
-                                   keep_prob: 1.0})
+                                   keep_prob: 0.5})
             duration = time() - start_time
 
             if (iter + 1) % 10 == 0:
