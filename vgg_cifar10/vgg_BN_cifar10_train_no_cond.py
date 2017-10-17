@@ -106,7 +106,12 @@ def conv_layer(input, kernel_shape, stride, data_format='NCHW', name='conv'):
 
 
 def conv_bn_layer(input, kernel_shape, stride, is_train, data_format='NCHW', name='conv'):
-    with tf.variable_scope(name) as scope:
+    if is_train:
+        _reused = None
+    else:
+        _reused = True
+
+    with tf.variable_scope(name, reuse=_reused) as scope:
         kernel = tf.get_variable('W', shape=kernel_shape,
                                  initializer=tf.truncated_normal_initializer(
                                      stddev=math.sqrt(2.0 / (kernel_shape[0] * kernel_shape[1] * kernel_shape[2])),
@@ -114,13 +119,15 @@ def conv_bn_layer(input, kernel_shape, stride, is_train, data_format='NCHW', nam
                                  dtype=tf.float32)
         conv = tf.nn.conv2d(input, kernel, stride, 'SAME', data_format=data_format)
 
-        batch_norm = tf.cond(is_train,
-                             lambda: tf.contrib.layers.batch_norm(conv, scale=True, is_training=True, reuse=None,
-                                                                  data_format=data_format,
-                                                                  scope=scope),
-                             lambda: tf.contrib.layers.batch_norm(conv, scale=True, is_training=False, reuse=True,
-                                                                  data_format=data_format,
-                                                                  scope=scope))
+        if is_train is True:
+            batch_norm = tf.contrib.layers.batch_norm(conv, scale=True, is_training=True, reuse=None,
+                                                      data_format=data_format,
+                                                      scope=scope)
+        else:
+            batch_norm = tf.contrib.layers.batch_norm(conv, scale=True, is_training=False, reuse=True,
+                                                      data_format=data_format,
+                                                      scope=scope)
+
         conv = tf.nn.relu(batch_norm, name=scope.name)
 
         tf.summary.histogram('Convolution_layers/{}_{}'.format(name, 'activation'), conv)
@@ -129,7 +136,7 @@ def conv_bn_layer(input, kernel_shape, stride, is_train, data_format='NCHW', nam
     return conv
 
 
-def fc_layer(input, size, name='fc', final=False):
+def fc_layer(input, size, is_train, name='fc', final=False):
     '''Full Connected Layer in TensorFlow.
 
     :param input: A 2-D tensor of shape
@@ -142,7 +149,12 @@ def fc_layer(input, size, name='fc', final=False):
     :return:
         A TensorFlow operation of Full Connected Layer.
     '''
-    with tf.variable_scope(name) as scope:
+    if is_train:
+        _reused = None
+    else:
+        _reused = True
+
+    with tf.variable_scope(name, reuse=_reused) as scope:
         weights = tf.get_variable('W', shape=size,
                                   initializer=tf.truncated_normal_initializer(
                                       stddev=math.sqrt(1.0 / (size[0] + size[1])),
@@ -163,7 +175,7 @@ def fc_layer(input, size, name='fc', final=False):
     return fc
 
 
-def inference(raw, is_train):
+def inference(raw, is_train, keep_prob):
     '''
 
     :param raw:
@@ -251,21 +263,23 @@ def inference(raw, is_train):
 
     pool5_flat = tf.reshape(pool5, [-1, 1 * 1 * 512], name='flatten')
 
-    fc1 = fc_layer(pool5_flat, [1 * 1 * 512, 128], name='fc1', final=False)
+    fc1 = fc_layer(pool5_flat, [1 * 1 * 512, 128], is_train, name='fc1', final=False)
 
-    droput1 = tf.cond(is_train,
-                      lambda: tf.nn.dropout(fc1, tf.cast(0.8, tf.float32)),
-                      lambda: fc1,
-                      name='dropout1')
+    # droput1 = tf.cond(is_train,
+    #                   lambda: tf.nn.dropout(fc1, tf.cast(0.8, tf.float32)),
+    #                   lambda: fc1,
+    #                   name='dropout1')
+    dropout1 = tf.nn.dropout(fc1, keep_prob)
 
-    fc2 = fc_layer(droput1, [128, 64], name='fc2', final=False)
+    fc2 = fc_layer(dropout1, [128, 64], is_train, name='fc2', final=False)
 
-    droput2 = tf.cond(is_train,
-                      lambda: tf.nn.dropout(fc2, tf.cast(0.8, tf.float32)),
-                      lambda: fc2,
-                      name='dropout2')
+    # droput2 = tf.cond(is_train,
+    #                   lambda: tf.nn.dropout(fc2, tf.cast(0.8, tf.float32)),
+    #                   lambda: fc2,
+    #                   name='dropout2')
+    dropout2 = tf.nn.dropout(fc2, keep_prob)
 
-    softmax_linear = fc_layer(droput2, [64, NUM_CLASS], name='fc3', final=True)
+    softmax_linear = fc_layer(dropout2, [64, NUM_CLASS], is_train, name='fc3', final=True)
 
     return softmax_linear
 
@@ -341,18 +355,20 @@ if __name__ == '__main__':
 
     # build variables for training procedure.
     global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
-    is_train = tf.placeholder(tf.bool, name='is_train')
+    keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     # build train operation and variables.
-    train_x = tf.placeholder(tf.float32, shape=[None, NUM_IMAGE_WIDTH * NUM_IMAGE_HEIGHT * NUM_IMAGE_CHANNEL],
+    input_x = tf.placeholder(tf.float32, shape=[None, NUM_IMAGE_WIDTH * NUM_IMAGE_HEIGHT * NUM_IMAGE_CHANNEL],
                              name='train_images')
-    train_y = tf.placeholder(tf.float32, shape=[None, NUM_CLASS], name='train_label')
+    input_y = tf.placeholder(tf.float32, shape=[None, NUM_CLASS], name='train_label')
 
-    train_logits = inference(train_x, is_train)
-    loss_op = loss(train_logits, train_y)
+    train_logits = inference(input_x, True, keep_prob)
+    loss_op = loss(train_logits, input_y)
     train_op = train(loss_op, global_step)
+    train_accuacy_op = evaluate(train_logits, input_y, name='Train')
 
-    accuacy_op = evaluate(train_logits, train_y, name='Train')
+    eval_logits = inference(input_x, False, keep_prob)
+    eval_accuacy_op = evaluate(eval_logits, input_y, name='Train')
 
     with tf.Session() as session:
         session.run(tf.global_variables_initializer())
@@ -369,36 +385,29 @@ if __name__ == '__main__':
 
             start_time = time()
             session.run(train_op,
-                        feed_dict={train_x: batch_train_images,
-                                   train_y: batch_train_labels,
-                                   is_train: True})
+                        feed_dict={input_x: batch_train_images,
+                                   input_y: batch_train_labels,
+                                   keep_prob: 1.0})
             duration = time() - start_time
 
             if (iter + 1) % 10 == 0:
-                _global_step, _loss, _train_accuracy = session.run([global_step, loss_op, accuacy_op],
-                                                                   feed_dict={train_x: batch_train_images,
-                                                                              train_y: batch_train_labels,
-                                                                              is_train: False})
+                _global_step, _loss, _train_accuracy = session.run([global_step, loss_op, train_accuacy_op],
+                                                                   feed_dict={input_x: batch_train_images,
+                                                                              input_y: batch_train_labels,
+                                                                              keep_prob: 1.0})
                 msg = "Global Step: {0:>6}, accuracy: {1:>6.1%}, loss = {2:.2f} ({3:.1f} examples/sec, {4:.2f} sec/batch)"
                 print(msg.format(_global_step, _train_accuracy, _loss, BATCH_SIZE / duration, duration))
 
             if (iter + 1) % 100 == 0:
                 data_merged, _global_step = session.run([merged, global_step],
-                                                            feed_dict={train_x: batch_train_images,
-                                                                       train_y: batch_train_labels,
-                                                                       is_train: False})
+                                                        feed_dict={input_x: batch_train_images,
+                                                                   input_y: batch_train_labels,
+                                                                   keep_prob: 1.0})
 
-                # data_merged, global_step_iter = session.run([merged, global_step],
-                #                                             feed_dict={train_x: batch_train_images,
-                #                                                        train_y: batch_train_labels,
-                #                                                        is_train: False,
-                #                                                        keep_prob: 1.0}
-                #                                             )
-
-                _eval_accuracy = session.run(accuacy_op,
-                                             feed_dict={train_x: test_images,
-                                                        train_y: test_labels,
-                                                        is_train: False})
+                _eval_accuracy = session.run(eval_accuacy_op,
+                                             feed_dict={input_x: test_images,
+                                                        input_y: test_labels,
+                                                        keep_prob: 1.0})
 
                 print("Accuracy on Test-Set: {0:.2f}%".format(_eval_accuracy * 100.0))
 
