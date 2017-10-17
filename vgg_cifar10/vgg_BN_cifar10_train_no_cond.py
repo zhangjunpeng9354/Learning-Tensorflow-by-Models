@@ -205,6 +205,7 @@ def inference(raw, is_train, keep_prob):
         pool1 = tf.nn.max_pool(conv1, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool1')
     else:
         pool1 = tf.nn.max_pool(conv1, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool1')
+    # dropout1 = tf.nn.dropout(pool1, keep_prob)
 
     # convolution group 2, output - [8, 8, 128]
     # conv2 = conv_layer(pool1, [3, 3, 64, 128], [1, 1, 1, 1],
@@ -215,6 +216,7 @@ def inference(raw, is_train, keep_prob):
         pool2 = tf.nn.max_pool(conv2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool2')
     else:
         pool2 = tf.nn.max_pool(conv2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool2')
+    # dropout2 = tf.nn.dropout(pool2, keep_prob)
 
     # convolution group 3, output - [4, 4, 256]
     # conv3_1 = conv_layer(pool2, [3, 3, 128, 256], [1, 1, 1, 1],
@@ -231,6 +233,7 @@ def inference(raw, is_train, keep_prob):
     else:
         pool3 = tf.nn.max_pool(conv3_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool3')
+    # dropout3 = tf.nn.dropout(pool3, keep_prob)
 
     # convolution group 4, output - [2, 2, 512]
     # conv4_1 = conv_layer(pool3, [3, 3, 256, 512], [1, 1, 1, 1],
@@ -247,6 +250,7 @@ def inference(raw, is_train, keep_prob):
     else:
         pool4 = tf.nn.max_pool(conv4_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool4')
+    # dropout4 = tf.nn.dropout(pool4, keep_prob)
 
     # convolution group 5, output - [1, 1, 512]
     # conv5_1 = conv_layer(pool4, [3, 3, 512, 512], [1, 1, 1, 1],
@@ -263,6 +267,7 @@ def inference(raw, is_train, keep_prob):
     else:
         pool5 = tf.nn.max_pool(conv5_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool5')
+    # dropout5 = tf.nn.dropout(pool5, keep_prob)
 
     pool5_flat = tf.reshape(pool5, [-1, 1 * 1 * 512], name='flatten')
 
@@ -308,7 +313,7 @@ def loss(logits, labels):
 
 def train(total_loss, global_step):
     # Decay the learning rate exponentially based on the number of steps. best
-    lr = tf.train.exponential_decay(0.005,
+    lr = tf.train.exponential_decay(0.05,
                                     global_step,
                                     500,
                                     0.9,
