@@ -20,21 +20,21 @@ NUM_IMAGE_CHANNEL = 3
 NUM_IMAGE_WIDTH = 32
 NUM_IMAGE_HEIGHT = 32
 
-CACHE_DIR = '/home/ubuntu/notebook/tensorboard/vgg-cifar10'
+# CACHE_DIR = '/home/ubuntu/notebook/tensorboard/vgg-cifar10'
 
 
-# CACHE_DIR = '/Users/Zhang/Research/Programming/Learning-Tensorflow-by-Models'
+CACHE_DIR = '/Users/Zhang/Research/Programming/Learning-Tensorflow-by-Models'
 
 
 def load_cifar10(path=None):
     if path is None:
-        # DATASET_DIR = '/Users/Zhang/Research/Deep Learning Dataset/CIFAR/cifar-10-batches-py/'
-        DATASET_DIR = '/home/ubuntu/datasets/cifar-10-batches-py/'
+        DATASET_DIR = '/Users/Zhang/Research/Deep Learning Dataset/CIFAR/cifar-10-batches-py/'
+        # DATASET_DIR = '/home/ubuntu/datasets/cifar-10-batches-py/'
     else:
         DATASET_DIR = path
 
-    TRAINSET_NAME = ['data_batch_1', 'data_batch_2', 'data_batch_3', 'data_batch_4', 'data_batch_5']
-    # TRAINSET_NAME = ['data_batch_1']
+    # TRAINSET_NAME = ['data_batch_1', 'data_batch_2', 'data_batch_3', 'data_batch_4', 'data_batch_5']
+    TRAINSET_NAME = ['data_batch_1']
     TESTSET_NAME = 'test_batch'
 
     _train_batch_files = []
