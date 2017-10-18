@@ -177,6 +177,58 @@ def fc_layer(input, size, is_train, name='fc', final=False):
 
     return fc
 
+def fc_bn_layer(input, size, is_train, name='fc', final=False):
+    '''Full Connected Layer in TensorFlow.
+
+    :param input: A 2-D tensor of shape
+        `[-1, NUM_INPUT]`.
+    :param size: A list of `ints`.
+        A 2-D tensor of shape
+        `[NUM_INPUT, NUM_OUTPUT]`.
+    :param final: An optinal `bool`. Default is `False`, while `True` is for the final layer.
+    :param name: An optional `string` for the name of this operation.
+    :return:
+        A TensorFlow operation of Full Connected Layer.
+    '''
+    if is_train:
+        _reused = None
+    else:
+        _reused = True
+
+    with tf.variable_scope(name, reuse=_reused) as scope:
+        weights = tf.get_variable('W', shape=size,
+                                  initializer=tf.truncated_normal_initializer(
+                                      stddev=math.sqrt(1.0 / (size[0] + size[1])),
+                                      dtype=tf.float32),
+                                  dtype=tf.float32)
+        weight_decay = tf.multiply(tf.nn.l2_loss(weights), 0.0005, name='weight_loss')
+        tf.add_to_collection('losses', weight_decay)
+
+
+
+        if final is True:
+            biases = tf.get_variable('b', size[1], initializer=tf.constant_initializer(0.0001))
+            fc = tf.add(tf.matmul(input, weights), biases, name=scope.name)
+        else:
+            fc = tf.matmul(input, weights)
+
+            if is_train is True:
+                batch_norm = tf.contrib.layers.batch_norm(fc, decay=0.9, scale=True, is_training=True, reuse=None,
+                                                          fused=True,
+                                                          scope=scope)
+            else:
+                batch_norm = tf.contrib.layers.batch_norm(fc, decay=0.9, scale=True, is_training=False, reuse=True,
+                                                          fused=True,
+                                                          scope=scope)
+
+            fc = tf.nn.relu(batch_norm)
+
+        if is_train:
+            tf.summary.histogram('activation', fc)
+            tf.summary.scalar('sparsity', tf.nn.zero_fraction(fc))
+
+    return fc
+
 
 def inference(raw, is_train, keep_prob):
     '''
@@ -271,7 +323,7 @@ def inference(raw, is_train, keep_prob):
 
     pool5_flat = tf.reshape(pool5, [-1, 1 * 1 * 512], name='flatten')
 
-    fc1 = fc_layer(pool5_flat, [1 * 1 * 512, 128], is_train, name='fc1', final=False)
+    fc1 = fc_bn_layer(pool5_flat, [1 * 1 * 512, 128], is_train, name='fc1', final=False)
 
     # droput1 = tf.cond(is_train,
     #                   lambda: tf.nn.dropout(fc1, tf.cast(0.8, tf.float32)),
@@ -279,7 +331,7 @@ def inference(raw, is_train, keep_prob):
     #                   name='dropout1')
     dropout1 = tf.nn.dropout(fc1, keep_prob)
 
-    fc2 = fc_layer(dropout1, [128, 64], is_train, name='fc2', final=False)
+    fc2 = fc_bn_layer(dropout1, [128, 64], is_train, name='fc2', final=False)
 
     # droput2 = tf.cond(is_train,
     #                   lambda: tf.nn.dropout(fc2, tf.cast(0.8, tf.float32)),
@@ -287,7 +339,7 @@ def inference(raw, is_train, keep_prob):
     #                   name='dropout2')
     dropout2 = tf.nn.dropout(fc2, keep_prob)
 
-    softmax_linear = fc_layer(dropout2, [64, NUM_CLASS], is_train, name='fc3', final=True)
+    softmax_linear = fc_bn_layer(dropout2, [64, NUM_CLASS], is_train, name='fc3', final=True)
 
     return softmax_linear
 
