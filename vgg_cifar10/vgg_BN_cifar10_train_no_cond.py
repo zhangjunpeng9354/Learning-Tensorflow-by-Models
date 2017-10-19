@@ -14,7 +14,7 @@ Summary of available functions:
 '''
 
 BATCH_SIZE = 64
-NUM_ITERATION = 60000
+NUM_ITERATION = 200000
 
 NUM_CLASS = 10
 NUM_IMAGE_CHANNEL = 3
@@ -119,16 +119,16 @@ def conv_bn_layer(input, kernel_shape, stride, is_train, data_format='NCHW', nam
                                  dtype=tf.float32)
         conv = tf.nn.conv2d(input, kernel, stride, 'SAME', data_format=data_format)
 
-        if is_train is True:
-            batch_norm = tf.contrib.layers.batch_norm(conv, decay=0.9, scale=True, is_training=True, reuse=None,
-                                                      data_format=data_format, fused=True,
-                                                      scope=scope)
-        else:
-            batch_norm = tf.contrib.layers.batch_norm(conv, decay=0.9, scale=True, is_training=False, reuse=True,
-                                                      data_format=data_format, fused=True,
-                                                      scope=scope)
+        conv = tf.nn.relu(conv, name=scope.name)
 
-        conv = tf.nn.relu(batch_norm, name=scope.name)
+        if is_train is True:
+            conv = tf.contrib.layers.batch_norm(conv, decay=0.9, scale=True, is_training=True, reuse=None,
+                                                data_format=data_format, fused=True,
+                                                scope=scope)
+        else:
+            conv = tf.contrib.layers.batch_norm(conv, decay=0.9, scale=True, is_training=False, reuse=True,
+                                                data_format=data_format, fused=True,
+                                                scope=scope)
 
         if is_train:
             tf.summary.histogram('activation', conv)
@@ -177,6 +177,7 @@ def fc_layer(input, size, is_train, name='fc', final=False):
 
     return fc
 
+
 def fc_bn_layer(input, size, is_train, name='fc', final=False):
     '''Full Connected Layer in TensorFlow.
 
@@ -204,24 +205,21 @@ def fc_bn_layer(input, size, is_train, name='fc', final=False):
         weight_decay = tf.multiply(tf.nn.l2_loss(weights), 0.0005, name='weight_loss')
         tf.add_to_collection('losses', weight_decay)
 
-
-
         if final is True:
             biases = tf.get_variable('b', size[1], initializer=tf.constant_initializer(0.0001))
             fc = tf.add(tf.matmul(input, weights), biases, name=scope.name)
         else:
             fc = tf.matmul(input, weights)
+            fc = tf.nn.relu(fc)
 
             if is_train is True:
-                batch_norm = tf.contrib.layers.batch_norm(fc, decay=0.9, scale=True, is_training=True, reuse=None,
-                                                          fused=True,
-                                                          scope=scope)
+                fc = tf.contrib.layers.batch_norm(fc, decay=0.9, scale=True, is_training=True, reuse=None,
+                                                  fused=True,
+                                                  scope=scope)
             else:
-                batch_norm = tf.contrib.layers.batch_norm(fc, decay=0.9, scale=True, is_training=False, reuse=True,
-                                                          fused=True,
-                                                          scope=scope)
-
-            fc = tf.nn.relu(batch_norm)
+                fc = tf.contrib.layers.batch_norm(fc, decay=0.9, scale=True, is_training=False, reuse=True,
+                                                  fused=True,
+                                                  scope=scope)
 
         if is_train:
             tf.summary.histogram('activation', fc)
@@ -250,25 +248,34 @@ def inference(raw, is_train, keep_prob):
     # convolution group 1, output - [16, 16, 64]
     # conv1 = conv_layer(x, [3, 3, 3, 64], [1, 1, 1, 1],
     #                       data_format=data_format, name='conv1')
-    conv1 = conv_bn_layer(x, [3, 3, 3, 64], [1, 1, 1, 1], is_train,
-                          data_format=data_format, name='conv1')
-
+    conv1_1 = conv_bn_layer(x, [3, 3, 3, 64], [1, 1, 1, 1], is_train,
+                            data_format=data_format, name='conv1_1')
+    dropout1 = tf.nn.dropout(conv1_1, keep_prob, name='dropout1')
+    conv1_2 = conv_bn_layer(dropout1, [3, 3, 64, 64], [1, 1, 1, 1], is_train,
+                            data_format=data_format, name='conv1_2')
+    # dropout1 = tf.nn.dropout(conv1, keep_prob)
     if data_format == 'NCHW':
-        pool1 = tf.nn.max_pool(conv1, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool1')
+        pool1 = tf.nn.max_pool(conv1_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
+                               name='pool1')
     else:
-        pool1 = tf.nn.max_pool(conv1, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool1')
-    # dropout1 = tf.nn.dropout(pool1, keep_prob)
+        pool1 = tf.nn.max_pool(conv1_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
+                               name='pool1')
 
     # convolution group 2, output - [8, 8, 128]
     # conv2 = conv_layer(pool1, [3, 3, 64, 128], [1, 1, 1, 1],
     #                       data_format=data_format, name='conv2')
-    conv2 = conv_bn_layer(pool1, [3, 3, 64, 128], [1, 1, 1, 1], is_train,
-                          data_format=data_format, name='conv2')
+    conv2_1 = conv_bn_layer(pool1, [3, 3, 64, 128], [1, 1, 1, 1], is_train,
+                            data_format=data_format, name='conv2_1')
+    dropout2 = tf.nn.dropout(conv2_1, keep_prob, name='dropout2')
+    conv2_2 = conv_bn_layer(dropout2, [3, 3, 128, 128], [1, 1, 1, 1], is_train,
+                            data_format=data_format, name='conv2_2')
+    # dropout2 = tf.nn.dropout(conv2, keep_prob)
     if data_format == 'NCHW':
-        pool2 = tf.nn.max_pool(conv2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format, name='pool2')
+        pool2 = tf.nn.max_pool(conv2_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
+                               name='pool2')
     else:
-        pool2 = tf.nn.max_pool(conv2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format, name='pool2')
-    # dropout2 = tf.nn.dropout(pool2, keep_prob)
+        pool2 = tf.nn.max_pool(conv2_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
+                               name='pool2')
 
     # convolution group 3, output - [4, 4, 256]
     # conv3_1 = conv_layer(pool2, [3, 3, 128, 256], [1, 1, 1, 1],
@@ -277,15 +284,19 @@ def inference(raw, is_train, keep_prob):
     #                         data_format=data_format, name='conv3_2')
     conv3_1 = conv_bn_layer(pool2, [3, 3, 128, 256], [1, 1, 1, 1], is_train,
                             data_format=data_format, name='conv3_1')
-    conv3_2 = conv_bn_layer(conv3_1, [3, 3, 256, 256], [1, 1, 1, 1], is_train,
+    dropout3_1 = tf.nn.dropout(conv3_1, keep_prob, name='dropout3_1')
+    conv3_2 = conv_bn_layer(dropout3_1, [3, 3, 256, 256], [1, 1, 1, 1], is_train,
                             data_format=data_format, name='conv3_2')
+    dropout3_2 = tf.nn.dropout(conv3_2, keep_prob, name='dropout3_2')
+    conv3_3 = conv_bn_layer(dropout3_2, [3, 3, 256, 256], [1, 1, 1, 1], is_train,
+                            data_format=data_format, name='conv3_3')
+    # dropout3 = tf.nn.dropout(conv3_2, keep_prob)
     if data_format == 'NCHW':
-        pool3 = tf.nn.max_pool(conv3_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
+        pool3 = tf.nn.max_pool(conv3_3, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
                                name='pool3')
     else:
-        pool3 = tf.nn.max_pool(conv3_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
+        pool3 = tf.nn.max_pool(conv3_3, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool3')
-    # dropout3 = tf.nn.dropout(pool3, keep_prob)
 
     # convolution group 4, output - [2, 2, 512]
     # conv4_1 = conv_layer(pool3, [3, 3, 256, 512], [1, 1, 1, 1],
@@ -294,15 +305,19 @@ def inference(raw, is_train, keep_prob):
     #                         data_format=data_format, name='conv4_2')
     conv4_1 = conv_bn_layer(pool3, [3, 3, 256, 512], [1, 1, 1, 1], is_train,
                             data_format=data_format, name='conv4_1')
-    conv4_2 = conv_bn_layer(conv4_1, [3, 3, 512, 512], [1, 1, 1, 1], is_train,
+    dropout4_1 = tf.nn.dropout(conv4_1, keep_prob, name='dropout4_1')
+    conv4_2 = conv_bn_layer(dropout4_1, [3, 3, 512, 512], [1, 1, 1, 1], is_train,
                             data_format=data_format, name='conv4_2')
+    dropout4_2 = tf.nn.dropout(conv4_2, keep_prob, name='dropout4_2')
+    conv4_3 = conv_bn_layer(dropout4_2, [3, 3, 512, 512], [1, 1, 1, 1], is_train,
+                            data_format=data_format, name='conv4_3')
+    # dropout4 = tf.nn.dropout(conv4_2, keep_prob)
     if data_format == 'NCHW':
-        pool4 = tf.nn.max_pool(conv4_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
+        pool4 = tf.nn.max_pool(conv4_3, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
                                name='pool4')
     else:
-        pool4 = tf.nn.max_pool(conv4_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
+        pool4 = tf.nn.max_pool(conv4_3, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool4')
-    # dropout4 = tf.nn.dropout(pool4, keep_prob)
 
     # convolution group 5, output - [1, 1, 512]
     # conv5_1 = conv_layer(pool4, [3, 3, 512, 512], [1, 1, 1, 1],
@@ -311,35 +326,39 @@ def inference(raw, is_train, keep_prob):
     #                         data_format=data_format, name='conv5_2')
     conv5_1 = conv_bn_layer(pool4, [3, 3, 512, 512], [1, 1, 1, 1], is_train,
                             data_format=data_format, name='conv5_1')
-    conv5_2 = conv_bn_layer(conv5_1, [3, 3, 512, 512], [1, 1, 1, 1], is_train,
+    dropout5_1 = tf.nn.dropout(conv5_1, keep_prob, name='dropout5_1')
+    conv5_2 = conv_bn_layer(dropout5_1, [3, 3, 512, 512], [1, 1, 1, 1], is_train,
                             data_format=data_format, name='conv5_2')
+    dropout5_2 = tf.nn.dropout(conv5_2, keep_prob, name='dropout5_1')
+    conv5_3 = conv_bn_layer(dropout5_2, [3, 3, 512, 512], [1, 1, 1, 1], is_train,
+                            data_format=data_format, name='conv5_3')
+    # dropout5 = tf.nn.dropout(conv5_2, keep_prob)
     if data_format == 'NCHW':
-        pool5 = tf.nn.max_pool(conv5_2, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
+        pool5 = tf.nn.max_pool(conv5_3, [1, 1, 2, 2], [1, 1, 2, 2], padding='SAME', data_format=data_format,
                                name='pool5')
     else:
-        pool5 = tf.nn.max_pool(conv5_2, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
+        pool5 = tf.nn.max_pool(conv5_3, [1, 2, 2, 1], [1, 2, 2, 1], padding='SAME', data_format=data_format,
                                name='pool5')
-    # dropout5 = tf.nn.dropout(pool5, keep_prob)
 
     pool5_flat = tf.reshape(pool5, [-1, 1 * 1 * 512], name='flatten')
 
-    fc1 = fc_bn_layer(pool5_flat, [1 * 1 * 512, 128], is_train, name='fc1', final=False)
+    fc1 = fc_bn_layer(pool5_flat, [1 * 1 * 512, 256], is_train, name='fc1', final=False)
 
     # droput1 = tf.cond(is_train,
     #                   lambda: tf.nn.dropout(fc1, tf.cast(0.8, tf.float32)),
     #                   lambda: fc1,
     #                   name='dropout1')
-    dropout1 = tf.nn.dropout(fc1, keep_prob)
+    dropout_fc_1 = tf.nn.dropout(fc1, keep_prob, name='dropout_fc_1')
 
-    fc2 = fc_bn_layer(dropout1, [128, 64], is_train, name='fc2', final=False)
+    fc2 = fc_bn_layer(dropout_fc_1, [256, 64], is_train, name='fc2', final=False)
 
     # droput2 = tf.cond(is_train,
     #                   lambda: tf.nn.dropout(fc2, tf.cast(0.8, tf.float32)),
     #                   lambda: fc2,
     #                   name='dropout2')
-    dropout2 = tf.nn.dropout(fc2, keep_prob)
+    dropout_fc_2 = tf.nn.dropout(fc2, keep_prob, name='dropout_fc_2')
 
-    softmax_linear = fc_bn_layer(dropout2, [64, NUM_CLASS], is_train, name='fc3', final=True)
+    softmax_linear = fc_bn_layer(dropout_fc_2, [64, NUM_CLASS], is_train, name='fc3', final=True)
 
     return softmax_linear
 
@@ -365,9 +384,9 @@ def loss(logits, labels):
 
 def train(total_loss, global_step):
     # Decay the learning rate exponentially based on the number of steps. best
-    lr = tf.train.exponential_decay(0.05,
+    lr = tf.train.exponential_decay(0.01,
                                     global_step,
-                                    500,
+                                    1000,
                                     0.9,
                                     staircase=True)
 
@@ -377,16 +396,15 @@ def train(total_loss, global_step):
     #                                 0.316,
     #                                 staircase=True) not good
 
-    # lr = 0.0005
+    # lr = 0.005
     tf.summary.scalar('learning_rate/lr', lr)
 
-    optimizer = tf.train.AdagradOptimizer(lr)
+    optimizer = tf.train.RMSPropOptimizer(lr)
 
     bn_update_op = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(bn_update_op):
         grads = optimizer.compute_gradients(total_loss)
         apply_gradient_op = optimizer.apply_gradients(grads, global_step=global_step)
-
 
     for grad, var in grads:
         if grad is not None:

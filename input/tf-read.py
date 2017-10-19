@@ -72,5 +72,8 @@ if __name__ == '__main__':
     value1, value2 = sess.run([next_element, next_element])
     print(value1, value2)
 
+    value_tensor = tf.Variable(5.0)
+    print value_tensor
+
 
 
