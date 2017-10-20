@@ -54,9 +54,17 @@ def load_cifar10(path=None):
         test_batch = cPickle.load(f)
 
     train_images = np.vstack(batch['data'] for batch in _train_batches)
+    train_images = train_images.astype(dtype=np.float32)
+    train_images[:, 0:1024] = (train_images[:, 0:1024] - 125.307) / 62.993
+    train_images[:, 1024:2048] = (train_images[:, 1024:2048] - 122.950) / 62.089
+    train_images[:, 2048:] = (train_images[:, 2048:] - 113.865) / 66.705
     train_ys = np.hstack(batch['labels'] for batch in _train_batches)
 
     test_images = test_batch['data']
+    test_images = test_images.astype(dtype=np.float32)
+    test_images[:, 0:1024] = (test_images[:, 0:1024] - 125.307) / 62.993
+    test_images[:, 1024:2048] = (test_images[:, 1024:2048] - 122.950) / 62.089
+    test_images[:, 2048:] = (test_images[:, 2048:] - 113.865) / 66.705
     test_ys = np.array(test_batch['labels'])
 
     train_labels = np.zeros(shape=(len(train_ys), 10), dtype=np.float32)
@@ -64,7 +72,7 @@ def load_cifar10(path=None):
     test_labels = np.zeros(shape=(len(test_ys), 10), dtype=np.float32)
     test_labels[np.arange(len(test_ys)), test_ys] = 1
 
-    return train_images.astype(np.float32), train_labels, test_images.astype(np.float32), test_labels
+    return train_images, train_labels, test_images, test_labels
 
 
 def conv_layer(input, kernel_shape, stride, data_format='NCHW', name='conv'):
@@ -90,7 +98,7 @@ def conv_layer(input, kernel_shape, stride, data_format='NCHW', name='conv'):
     with tf.variable_scope(name) as scope:
         kernel = tf.get_variable('W', shape=kernel_shape,
                                  initializer=tf.truncated_normal_initializer(
-                                     stddev=math.sqrt(2.0 / (kernel_shape[0] * kernel_shape[1] * kernel_shape[2])),
+                                     stddev=math.sqrt(2.0 / (kernel_shape[0] * kernel_shape[1] * kernel_shape[3])),
                                      dtype=tf.float32),
                                  dtype=tf.float32)
         bias = tf.get_variable('b', kernel_shape[3], initializer=tf.constant_initializer(0.001))
@@ -114,12 +122,19 @@ def conv_bn_layer(input, kernel_shape, stride, is_train, data_format='NCHW', nam
     with tf.variable_scope(name, reuse=_reused) as scope:
         kernel = tf.get_variable('W', shape=kernel_shape,
                                  initializer=tf.truncated_normal_initializer(
-                                     stddev=math.sqrt(2.0 / (kernel_shape[0] * kernel_shape[1] * kernel_shape[2])),
+                                     stddev=math.sqrt(
+                                         2.0 / (kernel_shape[0] * kernel_shape[1] * kernel_shape[2] + kernel_shape[3])),
                                      dtype=tf.float32),
                                  dtype=tf.float32)
         conv = tf.nn.conv2d(input, kernel, stride, 'SAME', data_format=data_format)
+        bias = tf.get_variable('b', kernel_shape[3], initializer=tf.constant_initializer(0.0))
+        pre_activation = tf.nn.bias_add(conv, bias, data_format=data_format)
 
-        conv = tf.nn.relu(conv, name=scope.name)
+        conv = tf.nn.relu(pre_activation, name=scope.name)
+
+        if is_train:
+            tf.summary.histogram('activation', conv)
+            tf.summary.scalar('sparsity', tf.nn.zero_fraction(conv))
 
         if is_train is True:
             conv = tf.contrib.layers.batch_norm(conv, decay=0.9, scale=True, is_training=True, reuse=None,
@@ -129,10 +144,6 @@ def conv_bn_layer(input, kernel_shape, stride, is_train, data_format='NCHW', nam
             conv = tf.contrib.layers.batch_norm(conv, decay=0.9, scale=True, is_training=False, reuse=True,
                                                 data_format=data_format, fused=True,
                                                 scope=scope)
-
-        if is_train:
-            tf.summary.histogram('activation', conv)
-            tf.summary.scalar('sparsity', tf.nn.zero_fraction(conv))
 
     return conv
 
@@ -158,7 +169,7 @@ def fc_layer(input, size, is_train, name='fc', final=False):
     with tf.variable_scope(name, reuse=_reused) as scope:
         weights = tf.get_variable('W', shape=size,
                                   initializer=tf.truncated_normal_initializer(
-                                      stddev=math.sqrt(1.0 / (size[0] + size[1])),
+                                      stddev=math.sqrt(2.0 / (size[0] + size[1])),
                                       dtype=tf.float32),
                                   dtype=tf.float32)
         weight_decay = tf.multiply(tf.nn.l2_loss(weights), 0.0005, name='weight_loss')
@@ -205,12 +216,16 @@ def fc_bn_layer(input, size, is_train, name='fc', final=False):
         weight_decay = tf.multiply(tf.nn.l2_loss(weights), 0.0005, name='weight_loss')
         tf.add_to_collection('losses', weight_decay)
 
+        biases = tf.get_variable('b', size[1], initializer=tf.constant_initializer(0.0001))
+
         if final is True:
-            biases = tf.get_variable('b', size[1], initializer=tf.constant_initializer(0.0001))
             fc = tf.add(tf.matmul(input, weights), biases, name=scope.name)
         else:
-            fc = tf.matmul(input, weights)
-            fc = tf.nn.relu(fc)
+            fc = tf.nn.relu(tf.matmul(input, weights) + biases, name=scope.name)
+
+            if is_train:
+                tf.summary.histogram('activation', fc)
+                tf.summary.scalar('sparsity', tf.nn.zero_fraction(fc))
 
             if is_train is True:
                 fc = tf.contrib.layers.batch_norm(fc, decay=0.9, scale=True, is_training=True, reuse=None,
@@ -220,10 +235,6 @@ def fc_bn_layer(input, size, is_train, name='fc', final=False):
                 fc = tf.contrib.layers.batch_norm(fc, decay=0.9, scale=True, is_training=False, reuse=True,
                                                   fused=True,
                                                   scope=scope)
-
-        if is_train:
-            tf.summary.histogram('activation', fc)
-            tf.summary.scalar('sparsity', tf.nn.zero_fraction(fc))
 
     return fc
 
@@ -384,11 +395,11 @@ def loss(logits, labels):
 
 def train(total_loss, global_step):
     # Decay the learning rate exponentially based on the number of steps. best
-    lr = tf.train.exponential_decay(0.01,
-                                    global_step,
-                                    1000,
-                                    0.9,
-                                    staircase=True)
+    # lr = tf.train.exponential_decay(0.1,
+    #                                 global_step,
+    #                                 500,
+    #                                 0.9,
+    #                                 staircase=True)
 
     # lr = tf.train.exponential_decay(0.001,
     #                                 global_step,
@@ -396,7 +407,7 @@ def train(total_loss, global_step):
     #                                 0.316,
     #                                 staircase=True) not good
 
-    # lr = 0.005
+    lr = 0.005
     tf.summary.scalar('learning_rate/lr', lr)
 
     optimizer = tf.train.RMSPropOptimizer(lr)
@@ -430,8 +441,6 @@ def evaluate(logits, labels, is_train, name='Train'):
 if __name__ == '__main__':
     # load data
     train_images, train_labels, test_images, test_labels = load_cifar10()
-    train_images = (train_images - 128) / 128.0
-    test_images = (test_images - 128) / 128.0
 
     # build variables for training procedure.
     global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
