@@ -75,5 +75,7 @@ if __name__ == '__main__':
     value_tensor = tf.Variable(5.0)
     print value_tensor
 
+    
+
 
 
