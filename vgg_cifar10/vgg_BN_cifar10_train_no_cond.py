@@ -395,11 +395,11 @@ def loss(logits, labels):
 
 def train(total_loss, global_step):
     # Decay the learning rate exponentially based on the number of steps. best
-    # lr = tf.train.exponential_decay(0.1,
-    #                                 global_step,
-    #                                 500,
-    #                                 0.9,
-    #                                 staircase=True)
+    lr = tf.train.exponential_decay(0.1,
+                                    global_step,
+                                    500,
+                                    0.9,
+                                    staircase=True)
 
     # lr = tf.train.exponential_decay(0.001,
     #                                 global_step,
@@ -407,7 +407,7 @@ def train(total_loss, global_step):
     #                                 0.316,
     #                                 staircase=True) not good
 
-    lr = 0.005
+    # lr = 0.005
     tf.summary.scalar('learning_rate/lr', lr)
 
     optimizer = tf.train.RMSPropOptimizer(lr)
